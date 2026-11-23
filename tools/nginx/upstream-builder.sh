@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Standalone NGINX cross-builder for Entware AArch64 and ARMv7 soft-float.
-# Host: Debian, Ubuntu, or Arch Linux (x86_64). No Maestro repository changes.
+# Host: Debian, Ubuntu, or Arch Linux (x86_64). Fully contained in toolbox.
 # Uses Entware's glibc 2.27 nginx-ssl recipe and per-architecture cross-toolchain.
 # Does NOT install anything on the router.
 set -Eeuo pipefail
@@ -430,7 +430,7 @@ settings = {
     'PACKAGE_nginx-mod-naxsi': 'n',
     'PACKAGE_nginx-mod-ts': 'n',
     'PACKAGE_nginx-mod-njs': 'n',
-    # Required by the Maestro reverse-proxy configuration / TLS.
+    # Required by the hardened reverse-proxy configuration / TLS.
     'NGINX_HTTP_V2': 'y',
     'NGINX_HTTP_REAL_IP': 'y',
     'NGINX_HTTP_AUTH_REQUEST': 'y',
@@ -649,7 +649,7 @@ PY
     printf 'release_selection=%s\n' "$RELEASE_SELECTION"
     printf 'target=%s\n' "$PACKAGE_TARGET"
     printf 'nginx_source_sha256=%s\n' "$SOURCE_SHA256"
-    printf 'profile=maestro-reverse-proxy-hardened-v2-broad-upstream\n'
+    printf 'profile=toolbox-reverse-proxy-hardened-v2-broad-upstream\n'
     printf 'hardening=PIE+SSP_STRONG+FORTIFY2+FULL_RELRO+FORMAT_SECURITY\n'
     printf 'enabled_upstreams=HTTP,HTTPS,GRPC,FASTCGI,UWSGI,SCGI,MEMCACHED,TCP,UDP\n'
     printf 'enabled_features=HTTP2,HTTP3,REAL_IP,ACCESS,AUTH_REQUEST,RATE_LIMIT,CONN_LIMIT,GZIP,BROTLI,HEADERS_MORE\n'

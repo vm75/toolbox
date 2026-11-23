@@ -9,7 +9,7 @@ on:
         required: true
         default: btop
         type: choice
-        options: [btop, busybox, cryptomator, john, librera, mupdf, nginx, rsync, vaultwarden, wireguard, wg-util]
+        options: [btop, busybox, cryptomator, 'John the Ripper', librera, mupdf, nginx, vaultwarden, wireguard, wg-util]
       target:
         description: Select an allowed target for that tool (validated by tool.conf)
         required: true
@@ -48,13 +48,19 @@ permissions:
   contents: read
   packages: read
 
+# The dropdown is human-readable; recipes, artifact names and tags use tool IDs.
+env:
+  TOOLBOX_TOOL: ${{ inputs.tool == 'John the Ripper' && 'john' || inputs.tool }}
+
 jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
-    # Only signed Android builds access the protected environment's secrets.
-    # All other jobs use the ordinary, secret-free "build" environment.
-    environment: ${{ (inputs.tool == 'librera' || inputs.tool == 'cryptomator') && !inputs.prepare_only && 'android-signing' || 'build' }}
+    # Keep environment-scoped Android signing secrets and approval rules,
+    # but do not record compilation jobs as deployments.
+    environment:
+      name: ${{ (inputs.tool == 'librera' || inputs.tool == 'cryptomator') && !inputs.prepare_only && 'android-signing' || 'build' }}
+      deployment: false
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,19 +71,15 @@ jobs:
 
       # Native builds reuse GitHub's Ubuntu image; install only what that tool needs.
       - name: Install native build dependencies
-        if: ${{ !inputs.prepare_only && (inputs.tool == 'busybox' || inputs.tool == 'rsync' || inputs.tool == 'john' || (inputs.tool == 'mupdf' && inputs.target == 'linux-amd64')) }}
+        if: ${{ !inputs.prepare_only && (inputs.tool == 'busybox' || env.TOOLBOX_TOOL == 'john' || (inputs.tool == 'mupdf' && inputs.target == 'linux-amd64')) }}
         env:
-          SELECTED_TOOL: ${{ inputs.tool }}
+          SELECTED_TOOL: ${{ env.TOOLBOX_TOOL }}
         shell: bash
         run: |
           set -euo pipefail
           case "$SELECTED_TOOL" in
             busybox)
               packages=(gcc-mingw-w64-x86-64 make)
-              ;;
-            rsync)
-              packages=(build-essential autoconf automake libtool pkg-config
-                        libssl-dev libxxhash-dev libzstd-dev liblz4-dev)
               ;;
             john)
               packages=(build-essential autoconf automake pkg-config libssl-dev
@@ -113,7 +115,7 @@ jobs:
         if: ${{ !inputs.prepare_only && (inputs.tool == 'cryptomator' || inputs.tool == 'librera') }}
         shell: bash
         env:
-          SELECTED_TOOL: ${{ inputs.tool }}
+          SELECTED_TOOL: ${{ env.TOOLBOX_TOOL }}
           LIBRERA_KEYSTORE_BASE64: ${{ secrets.LIBRERA_KEYSTORE_BASE64 }}
           LIBRERA_STORE_PASSWORD: ${{ secrets.LIBRERA_STORE_PASSWORD }}
           LIBRERA_KEY_ALIAS: ${{ secrets.LIBRERA_KEY_ALIAS }}
@@ -171,7 +173,7 @@ jobs:
           TOOLBOX_JOBS: '4'
           TOOLBOX_PREPARE_ONLY: ${{ inputs.prepare_only && '1' || '0' }}
           TOOLBOX_BUILDER_TAG: ${{ inputs.builder_image_tag }}
-          SELECTED_TOOL: ${{ inputs.tool }}
+          SELECTED_TOOL: ${{ env.TOOLBOX_TOOL }}
           SELECTED_TARGET: ${{ inputs.target }}
           SELECTED_REF: ${{ inputs.upstream_ref }}
         run: bash scripts/run.sh "$SELECTED_TOOL" "$SELECTED_TARGET" "$SELECTED_REF"
@@ -179,7 +181,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: toolbox-${{ inputs.tool }}-${{ inputs.target }}-${{ github.run_id }}
+          name: toolbox-${{ env.TOOLBOX_TOOL }}-${{ inputs.target }}-${{ github.run_id }}
           path: dist/
           if-no-files-found: error
           retention-days: 30
@@ -194,7 +196,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: toolbox-${{ inputs.tool }}-${{ inputs.target }}-${{ github.run_id }}
+          name: toolbox-${{ env.TOOLBOX_TOOL }}-${{ inputs.target }}-${{ github.run_id }}
           path: dist/
       - name: Publish this manually selected build
         shell: bash
@@ -202,7 +204,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="toolbox-${{ inputs.tool }}-${{ inputs.target }}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          tag="toolbox-${{ env.TOOLBOX_TOOL }}-${{ inputs.target }}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
           tar -C dist -czf "$RUNNER_TEMP/$tag.tar.gz" .
           mapfile -d '' -t ipks < <(find dist -type f -name '*.ipk' -print0)
           gh release create "$tag" "$RUNNER_TEMP/$tag.tar.gz" "${ipks[@]}" \

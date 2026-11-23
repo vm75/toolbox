@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-# The Maestro-derived builder verifies upstream release signatures and packages nginx modules.
+# The in-tree builder verifies upstream release signatures and packages nginx modules.
 case "$TARGET" in
   entware-aarch64) entware_target=aarch64-3.10 ;;
   entware-armv7) entware_target=armv7-3.2 ;;

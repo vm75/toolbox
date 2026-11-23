@@ -30,7 +30,7 @@ registry, generalized CI framework, or all-platform build farm.
    Secrets for signed APK builds belong in the GitHub `android-signing`
    environment, never in the repository or builder images.
 8. Preserve attribution, third-party licenses, sources and reproducible inputs.
-9. Reuse Maestro nginx's tested AArch64 Entware build system; btop uses
+9. Keep the in-tree Entware nginx builder self-contained; btop uses
    pinned static musl GCC 15.2. Do not cross-use hard-float ARMv7 toolchains.
 10. Keep only the three necessary images (Entware AArch64, Entware ARMv7
     soft-float, Android); other tools use GitHub-hosted Ubuntu.

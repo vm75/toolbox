@@ -27,7 +27,7 @@ manual workflow_dispatch (tool + compatible target + optional refs)
 ## Target isolation
 
 - **Entware AArch64**: `entware-aarch64` uses aarch64-k3.10, glibc 2.27.
-  Nginx uses Maestro's Entware GCC and native IPK recipes. Btop instead uses
+  Nginx uses the bundled Entware GCC toolchain and native IPK recipes. Btop instead uses
   GCC 15.2/musl to generate a fully static C++23 binary, packaged as
   `aarch64-3.10` IPK.
 - **Entware ARMv7**: `entware-armv7` is armv7sf-k3.2, **soft-float**,

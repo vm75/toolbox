@@ -43,6 +43,20 @@ done
 grep -q '^run-name:' .github/workflows/build.yml || {
   echo "Workflow run names must display the selected tool and target" >&2; exit 1;
 }
+[[ ! -d tools/rsync ]] && ! grep -Fq 'rsync' .github/workflows/build.yml || {
+  echo "Removed rsync recipe must not appear in the workflow" >&2; exit 1;
+}
+grep -Fq "'John the Ripper'" .github/workflows/build.yml &&
+  grep -Fq "TOOLBOX_TOOL: \${{ inputs.tool == 'John the Ripper' && 'john' || inputs.tool }}" .github/workflows/build.yml || {
+  echo "John the Ripper must map to the internal john recipe" >&2; exit 1;
+}
+# Build jobs may use signing secrets, but must not appear as deployments.
+grep -Fq 'deployment: false' .github/workflows/build.yml || {
+  echo "Tool builds must not create GitHub Deployments" >&2; exit 1;
+}
+grep -Fq "'android-signing' || 'build'" .github/workflows/build.yml || {
+  echo "Android signing environment routing must be preserved" >&2; exit 1;
+}
 old_target="router""-aarch64"
 ! grep -R -l -F "$old_target" scripts tools .github/workflows README.md docs || {
   echo "Legacy Entware target label still referenced" >&2; exit 1;
@@ -84,4 +98,35 @@ grep -Fq 'rustup target add "$rust_target"' tools/vaultwarden/build.sh || {
 grep -Fq 'STATIC=true GPU_SUPPORT=false' tools/btop/build.sh || {
   echo "Entware btop must be statically linked" >&2; exit 1;
 }
+# Route smoke tests: stub docker so ARMv7 cannot accidentally ask for an Android
+# signing key or rebuild the Entware toolchain from scratch.
+mkdir -p "$tmp/fake-bin"
+cat > "$tmp/fake-bin/docker" <<'FAKE_DOCKER'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$TOOLBOX_TEST_DOCKER_CALLS"
+FAKE_DOCKER
+chmod +x "$tmp/fake-bin/docker"
+for target in entware-aarch64 entware-armv7; do
+  case "$target" in
+    entware-aarch64) builder=entware-aarch64; tag=v3 ;;
+    entware-armv7) builder=entware-armv7; tag=v2 ;;
+  esac
+  for tool in nginx btop; do
+    : > "$tmp/docker-calls"
+    GITHUB_REPOSITORY=vm75/toolbox TOOLBOX_TEST_DOCKER_CALLS="$tmp/docker-calls" \
+      PATH="$tmp/fake-bin:$PATH" bash scripts/run.sh "$tool" "$target" >/dev/null
+    grep -Fqx "pull ghcr.io/vm75/toolbox/$builder:$tag" "$tmp/docker-calls" || {
+      echo "Wrong builder image for $tool/$target" >&2; exit 1;
+    }
+    grep -Fq -- '--env TOOLBOX_NGINX_CACHE=/opt/nginx-entware' "$tmp/docker-calls" || {
+      echo "Missing prebuilt Entware nginx toolchain cache for $tool/$target" >&2; exit 1;
+    }
+    grep -Fq "bash scripts/build.sh $tool $target" "$tmp/docker-calls" || {
+      echo "Wrong build command for $tool/$target" >&2; exit 1;
+    }
+    ! grep -Fq 'ANDROID_KEYSTORE_FILE' "$tmp/docker-calls" || {
+      echo "Router build incorrectly requested Android signing for $tool/$target" >&2; exit 1;
+    }
+  done
+done
 echo "Toolbox structural checks passed"

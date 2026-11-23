@@ -2,8 +2,8 @@
 
 Build personal tools from **clean upstream source** on demand. This repo stores
 small target-specific build recipes and at most one `custom.patch` per tool;
-it does **not** mirror or rebase upstream repositories. The router nginx build is based on the
-[Maestro nginx cross-builder](https://github.com/vm75/maestro).
+it does **not** mirror or rebase upstream repositories. The router nginx
+cross-builder is maintained directly in `tools/nginx/upstream-builder.sh`.
 
 ## Quick start
 
@@ -46,8 +46,7 @@ Only listed combinations are supported; the build runner rejects all others.
 | librera | android-arm64 | Depends on patched MuPDF checkout; signed F-Droid APK |
 | busybox | windows-amd64 | MinGW BusyBox-w32 |
 | cryptomator | android-arm64 | Signed APK; local customization patch |
-| rsync | linux-amd64 | Native source build |
-| john | linux-amd64 | John the Ripper jumbo source build |
+| John the Ripper (`john`) | linux-amd64 | Jumbo source build |
 | wireguard | linux-amd64, linux-arm64, linux-armv7 | wireguard-go plus wg-util |
 | wg-util | linux-amd64, linux-arm64, linux-armv7 | Key utility from vm75/wg-util |
 
