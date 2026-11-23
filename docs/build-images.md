@@ -39,8 +39,9 @@ repository Actions read access in the GHCR package settings. Tool builds have
 
 ## Running a build
 
-Use **Actions → Build toolbox tool → Run workflow**. Choose one tool and
-one supported target. `scripts/run.sh` selects the matching builder,
+Use **Actions → Build toolbox tool → Run workflow**. Choose a supported
+**tool / target** combination from the single dropdown. `scripts/run.sh`
+selects the matching builder,
 authenticates to GHCR, pulls the image, mounts the repository, and invokes
 the normal `scripts/build.sh` script.
 
