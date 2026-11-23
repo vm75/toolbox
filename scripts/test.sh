@@ -43,6 +43,13 @@ done
 grep -q '^run-name:' .github/workflows/build.yml || {
   echo "Workflow run names must display the selected tool and target" >&2; exit 1;
 }
+# Build jobs may use signing secrets, but must not appear as deployments.
+grep -Fq 'deployment: false' .github/workflows/build.yml || {
+  echo "Tool builds must not create GitHub Deployments" >&2; exit 1;
+}
+grep -Fq "'android-signing' || 'build'" .github/workflows/build.yml || {
+  echo "Android signing environment routing must be preserved" >&2; exit 1;
+}
 old_target="router""-aarch64"
 ! grep -R -l -F "$old_target" scripts tools .github/workflows README.md docs || {
   echo "Legacy Entware target label still referenced" >&2; exit 1;
