@@ -77,8 +77,8 @@ a GHCR image.
 
 Then in **Actions → Build toolbox tool → Run workflow**, choose:
 
-- `tool=librera`, `target=android-arm64`, or
-- `tool=cryptomator`, `target=android-arm64`.
+- `librera / android-arm64`, or
+- `cryptomator / android-arm64`.
 
 Leave `publish_release=false` for a first test. If the build passes,
 download the Actions artifact and verify the APK's signing certificate:
