@@ -84,4 +84,35 @@ grep -Fq 'rustup target add "$rust_target"' tools/vaultwarden/build.sh || {
 grep -Fq 'STATIC=true GPU_SUPPORT=false' tools/btop/build.sh || {
   echo "Entware btop must be statically linked" >&2; exit 1;
 }
+# Route smoke tests: stub docker so ARMv7 cannot accidentally ask for an Android
+# signing key or rebuild the Entware toolchain from scratch.
+mkdir -p "$tmp/fake-bin"
+cat > "$tmp/fake-bin/docker" <<'FAKE_DOCKER'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$TOOLBOX_TEST_DOCKER_CALLS"
+FAKE_DOCKER
+chmod +x "$tmp/fake-bin/docker"
+for target in entware-aarch64 entware-armv7; do
+  case "$target" in
+    entware-aarch64) builder=entware-aarch64; tag=v3 ;;
+    entware-armv7) builder=entware-armv7; tag=v2 ;;
+  esac
+  for tool in nginx btop; do
+    : > "$tmp/docker-calls"
+    GITHUB_REPOSITORY=vm75/toolbox TOOLBOX_TEST_DOCKER_CALLS="$tmp/docker-calls" \
+      PATH="$tmp/fake-bin:$PATH" bash scripts/run.sh "$tool" "$target" >/dev/null
+    grep -Fqx "pull ghcr.io/vm75/toolbox/$builder:$tag" "$tmp/docker-calls" || {
+      echo "Wrong builder image for $tool/$target" >&2; exit 1;
+    }
+    grep -Fq -- '--env TOOLBOX_NGINX_CACHE=/opt/nginx-entware' "$tmp/docker-calls" || {
+      echo "Missing prebuilt Entware nginx toolchain cache for $tool/$target" >&2; exit 1;
+    }
+    grep -Fq "bash scripts/build.sh $tool $target" "$tmp/docker-calls" || {
+      echo "Wrong build command for $tool/$target" >&2; exit 1;
+    }
+    ! grep -Fq 'ANDROID_KEYSTORE_FILE' "$tmp/docker-calls" || {
+      echo "Router build incorrectly requested Android signing for $tool/$target" >&2; exit 1;
+    }
+  done
+done
 echo "Toolbox structural checks passed"
