@@ -13,7 +13,6 @@ in [../LICENSE](../LICENSE). This does not relicense imported or patched code.
 | Vaultwarden | [dani-garcia/vaultwarden](https://github.com/dani-garcia/vaultwarden) | AGPL-3.0 |
 | BusyBox-w32 | [rmyorston/busybox-w32](https://github.com/rmyorston/busybox-w32) | GPL-2.0 |
 | Cryptomator Android | [cryptomator/android](https://github.com/cryptomator/android) | GPL-3.0 / commercial dual licensing |
-| rsync | [RsyncProject/rsync](https://github.com/RsyncProject/rsync) | GPL, see upstream COPYING |
 | John the Ripper jumbo | [magnumripper/JohnTheRipper](https://github.com/magnumripper/JohnTheRipper) | Upstream component licenses |
 | wireguard-go | [WireGuard/wireguard-go](https://github.com/WireGuard/wireguard-go) | MIT |
 | wg-util | [vm75/wg-util](https://github.com/vm75/wg-util) | See upstream repository |
