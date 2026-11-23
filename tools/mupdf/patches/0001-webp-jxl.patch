@@ -1,0 +1,2596 @@
+# Extracted from vm75/mupdf commit ae1c0fd431038692e7886170efd97eff69fe779e
+# Fork housekeeping and binary test fixtures intentionally excluded.
+
+diff --git a/.gitignore b/.gitignore
+index cc48481e159d..599c399a0393 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -52,3 +52,9 @@ platform/win32/Release
+ platform/win32/ReleaseOpenssl
+ platform/win32/Memento
+ platform/win32/x64
++platform/win32/.vs
++platform/c++
++__pycache__
++platform/python/*_swig.*
++platform/python/include
++platform/wasm/libmupdf.*
+
+diff --git a/.gitmodules b/.gitmodules
+index bce991158b2f..31eb2c577049 100644
+--- a/.gitmodules
++++ b/.gitmodules
+@@ -84,3 +84,6 @@
+ [submodule "thirdparty/cmark-gfm"]
+ 	path = thirdparty/cmark-gfm
+ 	url = ../thirdparty-cmark-gfm.git
++[submodule "thirdparty/libwebp"]
++	path = thirdparty/libwebp
++	url = https://github.com/webmproject/libwebp.git
+
+diff --git a/Makefile b/Makefile
+index 5907169e9d85..fcb383a4cc70 100644
+--- a/Makefile
++++ b/Makefile
+@@ -452,6 +452,22 @@ $(OUT)/storytest: docs/examples/storytest.c $(MUPDF_LIB) $(THIRD_LIB)
+ $(OUT)/searchtest: docs/examples/searchtest.c $(MUPDF_LIB) $(THIRD_LIB)
+ 	$(LINK_CMD) $(CFLAGS) $(THIRD_LIBS)
+ 
++# --- Image regression tests ---
++
++.PHONY: test-webp
++test-webp: $(OUT)/test-webp
++	$<
++
++$(OUT)/test-webp: source/tests/test-webp.c $(MUPDF_LIB) $(THIRD_LIB)
++	$(LINK_CMD) $(CFLAGS) $(THIRD_LIBS) $(THREADING_LIBS) $(LIBCRYPTO_LIBS)
++
++.PHONY: test-jxl
++test-jxl: $(OUT)/test-jxl
++	$<
++
++$(OUT)/test-jxl: source/tests/test-jxl.c $(MUPDF_LIB) $(THIRD_LIB)
++	$(LINK_CMD) $(CFLAGS) $(THIRD_LIBS) $(THREADING_LIBS) $(LIBCRYPTO_LIBS)
++
+ # --- Format man pages ---
+ 
+ %.txt: %.1
+
+diff --git a/Makelists b/Makelists
+index bbaaa6f29988..d0154034dae9 100644
+--- a/Makelists
++++ b/Makelists
+@@ -224,6 +224,76 @@ LIBJPEG_SRC += thirdparty/libjpeg/jquant1.c
+ LIBJPEG_SRC += thirdparty/libjpeg/jquant2.c
+ LIBJPEG_SRC += thirdparty/libjpeg/jutils.c
+ 
++# --- LIBWEBP ---
++
++LIBWEBP_CFLAGS += -Ithirdparty/libwebp -Ithirdparty/libwebp/src
++
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/alpha_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/buffer_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/frame_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/idec_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/io_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/quant_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/tree_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/vp8_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/vp8l_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dec/webp_dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/alpha_processing.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/alpha_processing_mips_dsp_r2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/alpha_processing_neon.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/alpha_processing_sse2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/alpha_processing_sse41.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/cpu.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/dec.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/dec_clip_tables.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/dec_mips32.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/dec_mips_dsp_r2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/dec_msa.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/dec_neon.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/dec_sse2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/dec_sse41.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/filters.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/filters_mips_dsp_r2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/filters_msa.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/filters_neon.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/filters_sse2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/lossless.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/lossless_avx2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/lossless_mips_dsp_r2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/lossless_msa.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/lossless_neon.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/lossless_sse2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/lossless_sse41.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/rescaler.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/rescaler_mips32.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/rescaler_mips_dsp_r2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/rescaler_msa.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/rescaler_neon.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/rescaler_sse2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/upsampling.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/upsampling_mips_dsp_r2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/upsampling_msa.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/upsampling_neon.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/upsampling_sse2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/upsampling_sse41.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/yuv.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/yuv_mips32.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/yuv_mips_dsp_r2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/yuv_neon.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/yuv_sse2.c
++LIBWEBP_SRC += thirdparty/libwebp/src/dsp/yuv_sse41.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/bit_reader_utils.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/color_cache_utils.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/filters_utils.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/huffman_utils.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/palette.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/quant_levels_dec_utils.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/random_utils.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/rescaler_utils.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/thread_utils.c
++LIBWEBP_SRC += thirdparty/libwebp/src/utils/utils.c
++LIBWEBP_SRC += thirdparty/libwebp/src/demux/demux.c
++
+ # --- LCMS2 (multi-threaded fork) ---
+ 
+ LCMS2_CFLAGS += -Ithirdparty/lcms2/include
+
+diff --git a/Makerules b/Makerules
+index cf4c80b2b539..3d690b813e06 100644
+--- a/Makerules
++++ b/Makerules
+@@ -11,6 +11,17 @@ WARNING_CFLAGS := -Wall -Wsign-compare -Wshadow -Wpointer-arith
+ 
+ build_suffix :=
+ 
++ifeq ($(jxl),yes)
++  build_suffix := $(build_suffix)-jxl
++  CFLAGS += -DFZ_ENABLE_JXL=1
++  USE_JXL := yes
++  SYS_LIBJXL_CFLAGS ?= $(shell pkg-config --cflags 'libjxl >= 0.12.0' 2>/dev/null)
++  SYS_LIBJXL_LIBS ?= $(shell pkg-config --libs 'libjxl >= 0.12.0' 2>/dev/null)
++  ifeq ($(strip $(SYS_LIBJXL_LIBS)),)
++    $(error jxl=yes requires libjxl >= 0.12.0; install its development package or set SYS_LIBJXL_CFLAGS and SYS_LIBJXL_LIBS)
++  endif
++endif
++
+ ifeq ($(brotli),no)
+   CFLAGS += -DFZ_ENABLE_BROTLI=0
+   USE_BROTLI := no
+@@ -207,6 +218,7 @@ SYS_JBIG2DEC_LIBS := -ljbig2dec
+ SYS_JPEGXR_LIBS := -ljpegxr
+ SYS_LCMS2_LIBS := -llcms2
+ SYS_LIBJPEG_LIBS := -ljpeg
++SYS_LIBWEBP_LIBS := -lwebpdemux -lwebp
+ SYS_MUJS_LIBS := -lmujs
+ SYS_OPENJPEG_LIBS := -lopenjp2
+ SYS_ZLIB_LIBS := -lz
+
+diff --git a/Makethird b/Makethird
+index 21badef2d9d6..e5a4b32585ff 100644
+--- a/Makethird
++++ b/Makethird
+@@ -8,6 +8,7 @@ ifeq ($(USE_SYSTEM_LIBS),yes)
+   USE_SYSTEM_JPEGXR ?= no # not available
+   USE_SYSTEM_LCMS2 ?= no # lcms2mt is strongly preferred
+   USE_SYSTEM_LIBJPEG ?= yes
++  USE_SYSTEM_LIBWEBP ?= yes
+   USE_SYSTEM_MUJS ?= no # not available
+   USE_SYSTEM_OPENJPEG ?= yes
+   USE_SYSTEM_ZLIB ?= yes
+@@ -196,6 +197,26 @@ $(OUT)/thirdparty/libjpeg/%.o: thirdparty/libjpeg/%.c
+ 	$(CC_CMD) $(LIB_CFLAGS) $(LIBJPEG_CFLAGS) $(LIBJPEG_BUILD_CFLAGS)
+ endif
+ 
++# --- LIBJXL (optional system library) ---
++
++ifeq ($(USE_JXL),yes)
++  THIRD_CFLAGS += $(SYS_LIBJXL_CFLAGS)
++  THIRD_LIBS += $(SYS_LIBJXL_LIBS)
++endif
++
++# --- LIBWEBP ---
++
++ifeq ($(USE_SYSTEM_LIBWEBP),yes)
++  THIRD_CFLAGS += $(SYS_LIBWEBP_CFLAGS)
++  THIRD_LIBS += $(SYS_LIBWEBP_LIBS)
++else
++  THIRD_CFLAGS += $(LIBWEBP_CFLAGS)
++  THIRD_LIBS += $(LIBWEBP_LIBS)
++  THIRD_SRC += $(LIBWEBP_SRC)
++$(OUT)/thirdparty/libwebp/%.o: thirdparty/libwebp/%.c
++	$(CC_CMD) $(LIB_CFLAGS) $(LIBWEBP_CFLAGS) $(LIBWEBP_BUILD_CFLAGS)
++endif
++
+ # --- LCMS2 ---
+ 
+ ifeq ($(USE_SYSTEM_LCMS2),yes)
+
+diff --git a/include/mupdf/fitz/compressed-buffer.h b/include/mupdf/fitz/compressed-buffer.h
+index e7f33a1646bc..8f03c9eec5db 100644
+--- a/include/mupdf/fitz/compressed-buffer.h
++++ b/include/mupdf/fitz/compressed-buffer.h
+@@ -176,6 +176,8 @@ typedef enum fz_image_type
+ 	FZ_IMAGE_PNM,
+ 	FZ_IMAGE_TIFF,
+ 	FZ_IMAGE_PSD,
++	FZ_IMAGE_WEBP,
++	FZ_IMAGE_JXL,
+ } fz_image_type;
+ 
+ /**
+
+diff --git a/include/mupdf/fitz/config.h b/include/mupdf/fitz/config.h
+index f03fc49d87b1..1be9938b4fe5 100644
+--- a/include/mupdf/fitz/config.h
++++ b/include/mupdf/fitz/config.h
+@@ -104,6 +104,12 @@
+ */
+ /* #define FZ_ENABLE_JPX 1 */
+ 
++/**
++	Choose whether to enable JPEG XL decoding using an external libjxl.
++	By default, it is disabled. The Makefile enables it with jxl=yes.
++*/
++/* #define FZ_ENABLE_JXL 0 */
++
+ /**
+ 	Choose whether to enable Brotli compression support.
+ 	By default, it is enabled.
+@@ -282,6 +288,10 @@
+ #define FZ_ENABLE_JPX 1
+ #endif /* FZ_ENABLE_JPX */
+ 
++#ifndef FZ_ENABLE_JXL
++#define FZ_ENABLE_JXL 0
++#endif /* FZ_ENABLE_JXL */
++
+ #ifndef FZ_ENABLE_BROTLI
+ #define FZ_ENABLE_BROTLI 1
+ #endif /* FZ_ENABLE_BROTLI */
+
+diff --git a/platform/java/Android.mk b/platform/java/Android.mk
+index dcc410217333..fb935f4f1c03 100644
+--- a/platform/java/Android.mk
++++ b/platform/java/Android.mk
+@@ -63,6 +63,7 @@ LOCAL_C_INCLUDES += $(patsubst -I%,$(MUPDF_PATH)/%,$(filter -I%,$(HARFBUZZ_CFLAG
+ LOCAL_C_INCLUDES += $(patsubst -I%,$(MUPDF_PATH)/%,$(filter -I%,$(JBIG2DEC_CFLAGS)))
+ LOCAL_C_INCLUDES += $(patsubst -I%,$(MUPDF_PATH)/%,$(filter -I%,$(LCMS2_CFLAGS)))
+ LOCAL_C_INCLUDES += $(patsubst -I%,$(MUPDF_PATH)/%,$(filter -I%,$(LIBJPEG_CFLAGS)))
++LOCAL_C_INCLUDES += $(patsubst -I%,$(MUPDF_PATH)/%,$(filter -I%,$(LIBWEBP_CFLAGS)))
+ LOCAL_C_INCLUDES += $(patsubst -I%,$(MUPDF_PATH)/%,$(filter -I%,$(MUJS_CFLAGS)))
+ LOCAL_C_INCLUDES += $(patsubst -I%,$(MUPDF_PATH)/%,$(filter -I%,$(OPENJPEG_CFLAGS)))
+ LOCAL_C_INCLUDES += $(patsubst -I%,$(MUPDF_PATH)/%,$(filter -I%,$(BROTLI_CFLAGS)))
+@@ -83,6 +84,7 @@ LOCAL_CFLAGS += $(filter-out -I%,$(HARFBUZZ_CFLAGS))
+ LOCAL_CFLAGS += $(filter-out -I%,$(JBIG2DEC_CFLAGS))
+ LOCAL_CFLAGS += $(filter-out -I%,$(LCMS2_CFLAGS))
+ LOCAL_CFLAGS += $(filter-out -I%,$(LIBJPEG_CFLAGS))
++LOCAL_CFLAGS += $(filter-out -I%,$(LIBWEBP_CFLAGS))
+ LOCAL_CFLAGS += $(filter-out -I%,$(MUJS_CFLAGS))
+ LOCAL_CFLAGS += $(filter-out -I%,$(OPENJPEG_CFLAGS))
+ LOCAL_CFLAGS += $(filter-out -I%,$(BROTLI_CFLAGS))
+@@ -166,6 +168,14 @@ LOCAL_CFLAGS += $(filter-out -I%,$(LIBJPEG_CFLAGS) $(LIBJPEG_BUILD_CFLAGS))
+ LOCAL_CFLAGS += $(MUPDF_EXTRA_CFLAGS)
+ include $(BUILD_STATIC_LIBRARY)
+ 
++include $(CLEAR_VARS)
++LOCAL_MODULE += mupdf_thirdparty_libwebp
++LOCAL_SRC_FILES += $(patsubst %,$(MUPDF_PATH)/%,$(LIBWEBP_SRC))
++LOCAL_C_INCLUDES += $(patsubst -I%,$(MUPDF_PATH)/%,$(filter -I%,$(LIBWEBP_CFLAGS) $(LIBWEBP_BUILD_CFLAGS)))
++LOCAL_CFLAGS += $(filter-out -I%,$(LIBWEBP_CFLAGS) $(LIBWEBP_BUILD_CFLAGS))
++LOCAL_CFLAGS += $(MUPDF_EXTRA_CFLAGS)
++include $(BUILD_STATIC_LIBRARY)
++
+ include $(CLEAR_VARS)
+ LOCAL_MODULE += mupdf_thirdparty_mujs
+ LOCAL_SRC_FILES += $(patsubst %,$(MUPDF_PATH)/%,$(MUJS_SRC))
+@@ -265,6 +275,7 @@ LOCAL_STATIC_LIBRARIES += mupdf_thirdparty_harfbuzz
+ LOCAL_STATIC_LIBRARIES += mupdf_thirdparty_jbig2dec
+ LOCAL_STATIC_LIBRARIES += mupdf_thirdparty_lcms2
+ LOCAL_STATIC_LIBRARIES += mupdf_thirdparty_libjpeg
++LOCAL_STATIC_LIBRARIES += mupdf_thirdparty_libwebp
+ LOCAL_STATIC_LIBRARIES += mupdf_thirdparty_mujs
+ LOCAL_STATIC_LIBRARIES += mupdf_thirdparty_openjpeg
+ LOCAL_STATIC_LIBRARIES += mupdf_thirdparty_brotli
+
+diff --git a/platform/win32/libmupdf.vcxproj b/platform/win32/libmupdf.vcxproj
+index b54757a06257..b32eacf4594c 100644
+--- a/platform/win32/libmupdf.vcxproj
++++ b/platform/win32/libmupdf.vcxproj
+@@ -463,7 +463,7 @@
+     </PreBuildEvent>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;WIN32;_DEBUG;MEMENTO=1;MEMENTO_MUPDF_HACKS=1;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -485,7 +485,7 @@
+     </PreBuildEvent>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;TOFU_CJK_EXT=1;HAVE_TESSERACT;HAVE_LEPTONICA;WIN32;_DEBUG;MEMENTO=1;MEMENTO_MUPDF_HACKS=1;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -510,7 +510,7 @@
+     </Midl>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;_DEBUG;MEMENTO=1;MEMENTO_MUPDF_HACKS=1;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -534,7 +534,7 @@
+     </Midl>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;TOFU_CJK_EXT=1;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;_DEBUG;MEMENTO=1;MEMENTO_MUPDF_HACKS=1;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -556,7 +556,7 @@
+     <Midl />
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;_DEBUG;MEMENTO=1;MEMENTO_MUPDF_HACKS=1;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -578,7 +578,7 @@
+     <Midl />
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;TOFU_CJK_EXT=1;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;_DEBUG;MEMENTO=1;MEMENTO_MUPDF_HACKS=1;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -598,7 +598,7 @@
+     </PreBuildEvent>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\openssl\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\openssl\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;HAVE_TESSERACT;HAVE_LEPTONICA;WIN32;_DEBUG;HAVE_LIBCRYPTO;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -626,7 +626,7 @@
+     </Midl>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\openssl\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\openssl\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;_DEBUG;HAVE_LIBCRYPTO;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -652,7 +652,7 @@
+     <Midl />
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\openssl\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\openssl\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;_DEBUG;HAVE_LIBCRYPTO;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -674,7 +674,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;HAVE_TESSERACT;HAVE_LEPTONICA;WIN32;NDEBUG;HAVE_LIBCRYPTO;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -699,7 +699,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;NDEBUG;HAVE_LIBCRYPTO;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -720,7 +720,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\openssl\include;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;NDEBUG;HAVE_LIBCRYPTO;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -743,7 +743,7 @@
+     </PreBuildEvent>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg/src/lib/openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg/src/lib/openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LEPTONICA;HAVE_TESSERACT;WIN32;_DEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -765,7 +765,7 @@
+     </PreBuildEvent>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg/src/lib/openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg/src/lib/openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;TOFU_CJK_EXT=1;HAVE_LEPTONICA;HAVE_TESSERACT;WIN32;_DEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -790,7 +790,7 @@
+     </Midl>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LEPTONICA;HAVE_TESSERACT;WIN64;_DEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -814,7 +814,7 @@
+     </Midl>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;TOFU_CJK_EXT=1;HAVE_LEPTONICA;HAVE_TESSERACT;WIN64;_DEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -836,7 +836,7 @@
+     <Midl />
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LEPTONICA;HAVE_TESSERACT;WIN64;_DEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -858,7 +858,7 @@
+     <Midl />
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;TOFU_CJK_EXT=1;HAVE_LEPTONICA;HAVE_TESSERACT;WIN64;_DEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -877,7 +877,7 @@
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+       <WholeProgramOptimization>false</WholeProgramOptimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LEPTONICA;HAVE_TESSERACT;WIN32;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -897,7 +897,7 @@
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+       <WholeProgramOptimization>false</WholeProgramOptimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;TOFU_CJK_EXT=1;HAVE_LEPTONICA;HAVE_TESSERACT;WIN32;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -919,7 +919,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LEPTONICA;HAVE_TESSERACT;WIN64;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -938,7 +938,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;TOFU_CJK_EXT=1;HAVE_LEPTONICA;HAVE_TESSERACT;WIN64;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -955,7 +955,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LEPTONICA;HAVE_TESSERACT;WIN64;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -972,7 +972,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;TOFU_CJK_EXT=1;HAVE_LEPTONICA;HAVE_TESSERACT;WIN64;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -990,7 +990,7 @@
+     </PreBuildEvent>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;HAVE_TESSERACT;HAVE_LEPTONICA;WIN32;_DEBUG;HAVE_LIBCRYPTO;MEMENTO=1;MEMENTO_MUPDF_HACKS=1;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -1018,7 +1018,7 @@
+     </Midl>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;_DEBUG;HAVE_LIBCRYPTO;MEMENTO=1;MEMENTO_MUPDF_HACKS=1;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -1044,7 +1044,7 @@
+     <Midl />
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\cmark-gfm\extensions;..\..\thirdparty\brotli\c\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;..\..\thirdparty\extract\include;..\..\thirdparty\libarchive\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;HAVE_TESSERACT;HAVE_LEPTONICA;WIN64;_DEBUG;HAVE_LIBCRYPTO;MEMENTO=1;MEMENTO_MUPDF_HACKS=1;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -1142,12 +1142,14 @@
+     <ClCompile Include="..\..\source\fitz\load-gif.c" />
+     <ClCompile Include="..\..\source\fitz\load-jbig2.c" />
+     <ClCompile Include="..\..\source\fitz\load-jpeg.c" />
++    <ClCompile Include="..\..\source\fitz\load-jxl.c" />
+     <ClCompile Include="..\..\source\fitz\load-jpx.c" />
+     <ClCompile Include="..\..\source\fitz\load-jxr.c" />
+     <ClCompile Include="..\..\source\fitz\load-png.c" />
+     <ClCompile Include="..\..\source\fitz\load-pnm.c" />
+     <ClCompile Include="..\..\source\fitz\load-psd.c" />
+     <ClCompile Include="..\..\source\fitz\load-tiff.c" />
++    <ClCompile Include="..\..\source\fitz\load-webp.c" />
+     <ClCompile Include="..\..\source\fitz\log.c" />
+     <ClCompile Include="..\..\source\fitz\memento.c" />
+     <ClCompile Include="..\..\source\fitz\memory.c" />
+
+diff --git a/platform/win32/libmupdf.vcxproj.filters b/platform/win32/libmupdf.vcxproj.filters
+index 29f9bf7af523..ea3dc93cb65e 100644
+--- a/platform/win32/libmupdf.vcxproj.filters
++++ b/platform/win32/libmupdf.vcxproj.filters
+@@ -285,6 +285,9 @@
+     <ClCompile Include="..\..\source\fitz\load-jpeg.c">
+       <Filter>fitz</Filter>
+     </ClCompile>
++    <ClCompile Include="..\..\source\fitz\load-jxl.c">
++      <Filter>fitz</Filter>
++    </ClCompile>
+     <ClCompile Include="..\..\source\fitz\load-jpx.c">
+       <Filter>fitz</Filter>
+     </ClCompile>
+@@ -300,6 +303,9 @@
+     <ClCompile Include="..\..\source\fitz\load-tiff.c">
+       <Filter>fitz</Filter>
+     </ClCompile>
++    <ClCompile Include="..\..\source\fitz\load-webp.c">
++      <Filter>fitz</Filter>
++    </ClCompile>
+     <ClCompile Include="..\..\source\fitz\memento.c">
+       <Filter>fitz</Filter>
+     </ClCompile>
+
+diff --git a/platform/win32/libthirdparty.vcxproj b/platform/win32/libthirdparty.vcxproj
+index dac4fea718d7..23740dfe15c1 100644
+--- a/platform/win32/libthirdparty.vcxproj
++++ b/platform/win32/libthirdparty.vcxproj
+@@ -165,7 +165,7 @@
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Memento|Win32'">
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;WIN32;_DEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;OPJ_STATIC;USE_JPIP=1;FT_CONFIG_MODULES_H="slimftmodules.h";FT_CONFIG_OPTIONS_H="slimftoptions.h";MEMENTO=1;verbose=-1;JBIG_EXTERNAL_MEMENTO_H="memento.h";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -182,7 +182,7 @@
+     </Midl>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;WIN64;_DEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;OPJ_STATIC;USE_JPIP=1;FT_CONFIG_MODULES_H="slimftmodules.h";FT_CONFIG_OPTIONS_H="slimftoptions.h";MEMENTO=1;verbose=-1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -198,7 +198,7 @@
+     <Midl />
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;WIN64;_DEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;OPJ_STATIC;USE_JPIP=1;FT_CONFIG_MODULES_H="slimftmodules.h";FT_CONFIG_OPTIONS_H="slimftoptions.h";MEMENTO=1;verbose=-1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -213,7 +213,7 @@
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;WIN32;_DEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;OPJ_STATIC;USE_JPIP=1;FT_CONFIG_MODULES_H="slimftmodules.h";FT_CONFIG_OPTIONS_H="slimftoptions.h";verbose=-1;JBIG_EXTERNAL_MEMENTO_H="memento.h";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -230,7 +230,7 @@
+     </Midl>
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;WIN64;_DEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;OPJ_STATIC;USE_JPIP=1;FT_CONFIG_MODULES_H="slimftmodules.h";FT_CONFIG_OPTIONS_H="slimftoptions.h";verbose=-1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -249,7 +249,7 @@
+     <Midl />
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;WIN64;_DEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;OPJ_STATIC;USE_JPIP=1;FT_CONFIG_MODULES_H="slimftmodules.h";FT_CONFIG_OPTIONS_H="slimftoptions.h";verbose=-1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>
+       </MinimalRebuild>
+@@ -268,7 +268,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;WIN32;NDEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;OPJ_STATIC;USE_JPIP=1;FT_CONFIG_MODULES_H="slimftmodules.h";FT_CONFIG_OPTIONS_H="slimftoptions.h";verbose=-1;JBIG_EXTERNAL_MEMENTO_H="memento.h";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -285,7 +285,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;WIN64;NDEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;OPJ_STATIC;USE_JPIP=1;FT_CONFIG_MODULES_H="slimftmodules.h";FT_CONFIG_OPTIONS_H="slimftoptions.h";verbose=-1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -300,7 +300,7 @@
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+       <IntrinsicFunctions>true</IntrinsicFunctions>
+-      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <AdditionalIncludeDirectories>..\..\scripts\cmark-gfm;..\..\thirdparty\cmark-gfm\src;..\..\thirdparty\brotli\c\include;..\..\thirdparty\lcms2\include;..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\libwebp;..\..\thirdparty\libwebp\src;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\freetype\include\freetype;..\..\thirdparty\gumbo-parser\src;..\..\thirdparty\gumbo-parser\visualc\include;..\..\include\;..\..\include\mupdf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>CMARK_GFM_STATIC_DEFINE;WIN64;NDEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;OPJ_STATIC;USE_JPIP=1;FT_CONFIG_MODULES_H="slimftmodules.h";FT_CONFIG_OPTIONS_H="slimftoptions.h";verbose=-1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+@@ -891,6 +891,201 @@
+   <ItemGroup>
+     <None Include="..\..\thirdparty\brotli\c\common\dictionary.bin" />
+     <None Include="..\..\thirdparty\brotli\c\common\dictionary.bin.br" />
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\alpha_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\buffer_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\frame_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\idec_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\io_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\quant_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\tree_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\vp8_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\vp8l_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\webp_dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing_mips_dsp_r2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing_neon.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing_sse2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing_sse41.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\cpu.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_clip_tables.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_mips32.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_mips_dsp_r2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_msa.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_neon.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_sse2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_sse41.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters_mips_dsp_r2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters_msa.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters_neon.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters_sse2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_avx2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_mips_dsp_r2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_msa.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_neon.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_sse2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_sse41.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_mips32.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_mips_dsp_r2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_msa.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_neon.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_sse2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_mips_dsp_r2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_msa.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_neon.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_sse2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_sse41.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_mips32.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_mips_dsp_r2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_neon.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_sse2.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_sse41.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\bit_reader_utils.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\color_cache_utils.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\filters_utils.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\huffman_utils.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\palette.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\quant_levels_dec_utils.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\random_utils.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\rescaler_utils.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\thread_utils.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\utils.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\demux\demux.c">
++      <ObjectFileName>$(IntDir)webp_%(Filename).obj</ObjectFileName>
++    </ClCompile>
+   </ItemGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+   <ImportGroup Label="ExtensionTargets">
+
+diff --git a/platform/win32/libthirdparty.vcxproj.filters b/platform/win32/libthirdparty.vcxproj.filters
+index 223ddffcdf63..b5ed0e9939cd 100644
+--- a/platform/win32/libthirdparty.vcxproj.filters
++++ b/platform/win32/libthirdparty.vcxproj.filters
+@@ -1,6 +1,9 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup>
++    <Filter Include="libwebp">
++      <UniqueIdentifier>{69f5afe0-2f47-4eb6-b59e-bcb1766f13df}</UniqueIdentifier>
++    </Filter>
+     <Filter Include="libjpeg">
+       <UniqueIdentifier>{a6adcaef-8b9e-4754-a340-907140253ce2}</UniqueIdentifier>
+     </Filter>
+@@ -1471,5 +1474,200 @@
+     <None Include="..\..\thirdparty\brotli\c\common\dictionary.bin.br">
+       <Filter>brotli\common</Filter>
+     </None>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\alpha_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\buffer_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\frame_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\idec_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\io_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\quant_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\tree_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\vp8_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\vp8l_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dec\webp_dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing_mips_dsp_r2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing_neon.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing_sse2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\alpha_processing_sse41.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\cpu.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_clip_tables.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_mips32.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_mips_dsp_r2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_msa.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_neon.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_sse2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\dec_sse41.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters_mips_dsp_r2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters_msa.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters_neon.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\filters_sse2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_avx2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_mips_dsp_r2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_msa.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_neon.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_sse2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\lossless_sse41.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_mips32.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_mips_dsp_r2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_msa.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_neon.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\rescaler_sse2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_mips_dsp_r2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_msa.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_neon.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_sse2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\upsampling_sse41.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_mips32.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_mips_dsp_r2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_neon.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_sse2.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\dsp\yuv_sse41.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\bit_reader_utils.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\color_cache_utils.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\filters_utils.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\huffman_utils.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\palette.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\quant_levels_dec_utils.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\random_utils.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\rescaler_utils.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\thread_utils.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\utils\utils.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
++    <ClCompile Include="..\..\thirdparty\libwebp\src\demux\demux.c">
++      <Filter>libwebp</Filter>
++    </ClCompile>
+   </ItemGroup>
+ </Project>
+\ No newline at end of file
+
+diff --git a/source/cbz/mucbz.c b/source/cbz/mucbz.c
+index c295f6903791..cec333bdda9d 100644
+--- a/source/cbz/mucbz.c
++++ b/source/cbz/mucbz.c
+@@ -49,6 +49,8 @@ static const char *cbz_ext_list[] = {
+ 	".tif",
+ 	".tiff",
+ 	".wdp",
++	".webp",
++	".jxl",
+ 	NULL
+ };
+ 
+
+diff --git a/source/cbz/muimg.c b/source/cbz/muimg.c
+index 69d1f990fdec..5734b2099f92 100644
+--- a/source/cbz/muimg.c
++++ b/source/cbz/muimg.c
+@@ -288,6 +288,8 @@ static const char *img_extensions[] =
+ 	"tif",
+ 	"tiff",
+ 	"wdp",
++	"webp",
++	"jxl",
+ 	NULL
+ };
+ 
+@@ -303,6 +305,8 @@ static const char *img_mimetypes[] =
+ 	"image/png",
+ 	"image/tiff",
+ 	"image/vnd.ms-photo",
++	"image/webp",
++	"image/jxl",
+ 	"image/vnd.adobe.photoshop",
+ 	"image/x-jb2",
+ 	"image/x-jbig2",
+
+diff --git a/source/fitz/image-imp.h b/source/fitz/image-imp.h
+index 960ab9bbf1d9..172d6053b98b 100644
+--- a/source/fitz/image-imp.h
++++ b/source/fitz/image-imp.h
+@@ -32,6 +32,8 @@ fz_pixmap *fz_load_gif(fz_context *ctx, const unsigned char *data, size_t size);
+ fz_pixmap *fz_load_bmp(fz_context *ctx, const unsigned char *data, size_t size);
+ fz_pixmap *fz_load_pnm(fz_context *ctx, const unsigned char *data, size_t size);
+ fz_pixmap *fz_load_jbig2(fz_context *ctx, const unsigned char *data, size_t size);
++fz_pixmap *fz_load_webp(fz_context *ctx, const unsigned char *data, size_t size);
++fz_pixmap *fz_load_jxl(fz_context *ctx, const unsigned char *data, size_t size);
+ 
+ void fz_load_jpeg_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cspace, uint8_t *orientation);
+ void fz_load_png_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cspace);
+@@ -42,6 +44,8 @@ void fz_load_gif_info(fz_context *ctx, const unsigned char *data, size_t size, i
+ void fz_load_bmp_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cspace);
+ void fz_load_pnm_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cspace);
+ void fz_load_jbig2_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cspace);
++void fz_load_webp_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cspace, uint8_t *orientation);
++void fz_load_jxl_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cspace, uint8_t *orientation);
+ 
+ /*
+  * The defcs parameter is used as a default colorspace if the image doesn't
+
+diff --git a/source/fitz/image.c b/source/fitz/image.c
+index ecc76cb308e0..df26aa3000d1 100644
+--- a/source/fitz/image.c
++++ b/source/fitz/image.c
+@@ -885,6 +885,12 @@ compressed_image_get_pixmap(fz_context *ctx, fz_image *image_, fz_irect *subarea
+ 		)
+ 			fz_decode_tile(ctx, tile, image->super.decode);
+ 		break;
++	case FZ_IMAGE_WEBP:
++		tile = fz_load_webp(ctx, image->buffer->buffer->data, image->buffer->buffer->len);
++		break;
++	case FZ_IMAGE_JXL:
++		tile = fz_load_jxl(ctx, image->buffer->buffer->data, image->buffer->buffer->len);
++		break;
+ 	case FZ_IMAGE_PSD:
+ 		tile = fz_load_psd(ctx, image->buffer->buffer->data, image->buffer->buffer->len);
+ 		break;
+@@ -1432,6 +1438,8 @@ fz_image_type_name(int type)
+ 	case FZ_IMAGE_PNG: return "png";
+ 	case FZ_IMAGE_PNM: return "pnm";
+ 	case FZ_IMAGE_TIFF: return "tiff";
++	case FZ_IMAGE_WEBP: return "webp";
++	case FZ_IMAGE_JXL: return "jxl";
+ 	}
+ }
+ 
+@@ -1454,12 +1462,17 @@ fz_lookup_image_type(const char *type)
+ 	if (!strcmp(type, "png")) return FZ_IMAGE_PNG;
+ 	if (!strcmp(type, "pnm")) return FZ_IMAGE_PNM;
+ 	if (!strcmp(type, "tiff")) return FZ_IMAGE_TIFF;
++	if (!strcmp(type, "webp")) return FZ_IMAGE_WEBP;
++	if (!strcmp(type, "jxl")) return FZ_IMAGE_JXL;
+ 	return FZ_IMAGE_UNKNOWN;
+ }
+ 
+ int
+ fz_recognize_image_format(fz_context *ctx, unsigned char p[8])
+ {
++	if ((p[0] == 0xff && p[1] == 0x0a) ||
++		!memcmp(p, "\0\0\0\x0cJXL ", 8))
++		return FZ_IMAGE_JXL;
+ 	if (p[0] == 'P' && p[1] >= '1' && p[1] <= '7')
+ 		return FZ_IMAGE_PNM;
+ 	if (p[0] == 'P' && (p[1] == 'F' || p[1] == 'f'))
+@@ -1491,6 +1504,8 @@ fz_recognize_image_format(fz_context *ctx, unsigned char p[8])
+ 		return FZ_IMAGE_JBIG2;
+ 	if (p[0] == '8' && p[1] == 'B' && p[2] == 'P' && p[3] == 'S')
+ 		return FZ_IMAGE_PSD;
++	if (p[0] == 'R' && p[1] == 'I' && p[2] == 'F' && p[3] == 'F')
++		return FZ_IMAGE_WEBP;
+ 	return FZ_IMAGE_UNKNOWN;
+ }
+ 
+@@ -1545,6 +1560,12 @@ fz_new_image_from_buffer(fz_context *ctx, fz_buffer *buffer)
+ 		fz_load_jbig2_info(ctx, buf, len, &w, &h, &xres, &yres, &cspace);
+ 		bpc = 1;
+ 		break;
++	case FZ_IMAGE_WEBP:
++		fz_load_webp_info(ctx, buf, len, &w, &h, &xres, &yres, &cspace, &orientation);
++		break;
++	case FZ_IMAGE_JXL:
++		fz_load_jxl_info(ctx, buf, len, &w, &h, &xres, &yres, &cspace, &orientation);
++		break;
+ 	default:
+ 		fz_throw(ctx, FZ_ERROR_FORMAT, "unknown image file format");
+ 	}
+
+diff --git a/source/fitz/load-jxl.c b/source/fitz/load-jxl.c
+index 000000000000..2c8bc3d38d56 100644
+--- /dev/null
++++ b/source/fitz/load-jxl.c
+@@ -0,0 +1,255 @@
++// Copyright (C) 2004-2022 Artifex Software, Inc.
++//
++// This file is part of MuPDF.
++//
++// MuPDF is free software: you can redistribute it and/or modify it under the
++// terms of the GNU Affero General Public License as published by the Free
++// Software Foundation, either version 3 of the License, or (at your option)
++// any later version.
++//
++// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
++// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
++// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
++// details.
++//
++// You should have received a copy of the GNU Affero General Public License
++// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
++//
++// Alternative licensing terms are available from the licensor.
++// For commercial licensing, see <https://www.artifex.com/> or contact
++// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
++// CA 94945, U.S.A., +1(415)492-9861, for further information.
++
++#include "mupdf/fitz.h"
++
++#include "image-imp.h"
++#include "pixmap-imp.h"
++
++#if FZ_ENABLE_JXL
++
++#include <limits.h>
++#include <jxl/decode.h>
++
++struct jxl_info
++{
++	int width, height;
++	int channels, alpha;
++	uint8_t orientation;
++	fz_colorspace *cs;
++};
++
++struct jxl_alloc
++{
++	fz_context *ctx;
++	int failed;
++};
++
++static void *
++jxl_malloc(void *opaque, size_t size)
++{
++	struct jxl_alloc *alloc = opaque;
++	void *p = fz_malloc_no_throw(alloc->ctx, size);
++	if (!p && size)
++		alloc->failed = 1;
++	return p;
++}
++
++static void
++jxl_free(void *opaque, void *p)
++{
++	struct jxl_alloc *alloc = opaque;
++	fz_free(alloc->ctx, p);
++}
++
++static void
++check_jxl_status(fz_context *ctx, struct jxl_alloc *alloc, JxlDecoderStatus status)
++{
++	if (status != JXL_DEC_SUCCESS)
++		fz_throw(ctx, alloc->failed ? FZ_ERROR_SYSTEM : FZ_ERROR_FORMAT, "failed decoding JPEG XL image");
++}
++
++static fz_colorspace *
++load_jxl_icc_profile(fz_context *ctx, JxlDecoder *decoder, struct jxl_alloc *alloc, int channels)
++{
++	fz_colorspace *cs = NULL;
++#if FZ_ENABLE_ICC
++	fz_buffer *buffer = NULL;
++
++	fz_var(cs);
++	fz_var(buffer);
++
++	fz_try(ctx)
++	{
++		size_t size;
++		unsigned char *data;
++		check_jxl_status(ctx, alloc, JxlDecoderGetICCProfileSize(decoder, JXL_COLOR_PROFILE_TARGET_DATA, &size));
++		if (size)
++		{
++			buffer = fz_new_buffer(ctx, size);
++			fz_append_byte_n(ctx, buffer, 0, size);
++			fz_buffer_storage(ctx, buffer, &data);
++			check_jxl_status(ctx, alloc, JxlDecoderGetColorAsICCProfile(decoder, JXL_COLOR_PROFILE_TARGET_DATA, data, size));
++			/* Match the profile to the decoded pixels, including grayscale output. */
++			cs = fz_new_icc_colorspace(ctx, channels == 1 ? FZ_COLORSPACE_GRAY : FZ_COLORSPACE_RGB, 0, NULL, buffer);
++		}
++	}
++	fz_always(ctx)
++		fz_drop_buffer(ctx, buffer);
++	fz_catch(ctx)
++	{
++		fz_rethrow_if(ctx, FZ_ERROR_SYSTEM);
++		fz_report_error(ctx);
++		fz_warn(ctx, "ignoring embedded ICC profile in JPEG XL");
++	}
++#else
++	(void)ctx;
++	(void)decoder;
++	(void)alloc;
++	(void)channels;
++#endif
++	return cs;
++}
++
++static fz_pixmap *
++load_jxl_image(fz_context *ctx, struct jxl_info *info, const unsigned char *data, size_t size, int only_metadata)
++{
++	static const uint8_t orientations[9] = { 0, 1, 5, 3, 7, 6, 4, 8, 2 };
++	struct jxl_alloc alloc = { ctx, 0 };
++	JxlMemoryManager memory = { &alloc, jxl_malloc, jxl_free };
++	JxlPixelFormat format = { 0, JXL_TYPE_UINT8, JXL_NATIVE_ENDIAN, 0 };
++	JxlDecoder *decoder = NULL;
++	fz_pixmap *image = NULL;
++
++	fz_var(alloc);
++	fz_var(decoder);
++	fz_var(image);
++
++	fz_try(ctx)
++	{
++		decoder = JxlDecoderCreate(&memory);
++		if (!decoder)
++			fz_throw(ctx, FZ_ERROR_SYSTEM, "cannot allocate JPEG XL decoder");
++		check_jxl_status(ctx, &alloc, JxlDecoderSetKeepOrientation(decoder, JXL_TRUE));
++		check_jxl_status(ctx, &alloc, JxlDecoderSetUnpremultiplyAlpha(decoder, JXL_TRUE));
++		check_jxl_status(ctx, &alloc, JxlDecoderSubscribeEvents(decoder,
++			JXL_DEC_BASIC_INFO | JXL_DEC_COLOR_ENCODING | JXL_DEC_FULL_IMAGE));
++		check_jxl_status(ctx, &alloc, JxlDecoderSetInput(decoder, data, size));
++		JxlDecoderCloseInput(decoder);
++
++		for (;;)
++		{
++			JxlDecoderStatus status = JxlDecoderProcessInput(decoder);
++			if (status == JXL_DEC_BASIC_INFO)
++			{
++				JxlBasicInfo basic;
++				check_jxl_status(ctx, &alloc, JxlDecoderGetBasicInfo(decoder, &basic));
++				if (!basic.xsize || !basic.ysize || basic.xsize > INT_MAX || basic.ysize > INT_MAX ||
++					(basic.num_color_channels != 1 && basic.num_color_channels != 3))
++					fz_throw(ctx, FZ_ERROR_FORMAT, "invalid JPEG XL dimensions or channel count");
++				info->width = basic.xsize;
++				info->height = basic.ysize;
++				info->channels = basic.num_color_channels;
++				info->alpha = basic.alpha_bits != 0;
++				if (basic.orientation >= 1 && basic.orientation <= 8)
++					info->orientation = orientations[basic.orientation];
++				info->cs = fz_keep_colorspace(ctx, info->channels == 1 ? fz_device_gray(ctx) : fz_device_rgb(ctx));
++				format.num_channels = info->channels + info->alpha;
++			}
++			else if (status == JXL_DEC_COLOR_ENCODING)
++			{
++				fz_colorspace *cs = load_jxl_icc_profile(ctx, decoder, &alloc, info->channels);
++				if (cs)
++				{
++					fz_drop_colorspace(ctx, info->cs);
++					info->cs = cs;
++				}
++				if (only_metadata)
++					break;
++			}
++			else if (status == JXL_DEC_NEED_IMAGE_OUT_BUFFER)
++			{
++				size_t required;
++				image = fz_new_pixmap(ctx, info->cs, info->width, info->height, NULL, info->alpha);
++				fz_set_pixmap_resolution(ctx, image, 72, 72);
++				check_jxl_status(ctx, &alloc, JxlDecoderImageOutBufferSize(decoder, &format, &required));
++				if (required != (size_t)image->stride * image->h)
++					fz_throw(ctx, FZ_ERROR_FORMAT, "unexpected JPEG XL output buffer size");
++				check_jxl_status(ctx, &alloc, JxlDecoderSetImageOutBuffer(decoder, &format, image->samples, required));
++			}
++			else if (status == JXL_DEC_FULL_IMAGE)
++			{
++				if (!image)
++					fz_throw(ctx, FZ_ERROR_FORMAT, "JPEG XL image has no pixel data");
++				if (info->alpha)
++					fz_premultiply_pixmap(ctx, image);
++				/* Use the first coalesced frame, as for standalone GIF images. */
++				break;
++			}
++			else
++				fz_throw(ctx, alloc.failed ? FZ_ERROR_SYSTEM : FZ_ERROR_FORMAT, "incomplete or invalid JPEG XL image");
++		}
++	}
++	fz_always(ctx)
++		JxlDecoderDestroy(decoder);
++	fz_catch(ctx)
++	{
++		fz_drop_pixmap(ctx, image);
++		fz_rethrow(ctx);
++	}
++
++	return image;
++}
++
++fz_pixmap *
++fz_load_jxl(fz_context *ctx, const unsigned char *data, size_t size)
++{
++	struct jxl_info info = { 0 };
++	fz_pixmap *image = NULL;
++
++	fz_var(info);
++	fz_var(image);
++	fz_try(ctx)
++		image = load_jxl_image(ctx, &info, data, size, 0);
++	fz_always(ctx)
++		fz_drop_colorspace(ctx, info.cs);
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++	return image;
++}
++
++void
++fz_load_jxl_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cs, uint8_t *orientation)
++{
++	struct jxl_info info = { 0 };
++
++	fz_var(info);
++	fz_try(ctx)
++		load_jxl_image(ctx, &info, data, size, 1);
++	fz_catch(ctx)
++	{
++		fz_drop_colorspace(ctx, info.cs);
++		fz_rethrow(ctx);
++	}
++	*w = info.width;
++	*h = info.height;
++	*xres = *yres = 72;
++	*cs = info.cs;
++	if (orientation)
++		*orientation = info.orientation;
++}
++
++#else
++
++fz_pixmap *
++fz_load_jxl(fz_context *ctx, const unsigned char *data, size_t size)
++{
++	fz_throw(ctx, FZ_ERROR_UNSUPPORTED, "JPEG XL support requires a build with libjxl (jxl=yes)");
++}
++
++void
++fz_load_jxl_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cs, uint8_t *orientation)
++{
++	fz_throw(ctx, FZ_ERROR_UNSUPPORTED, "JPEG XL support requires a build with libjxl (jxl=yes)");
++}
++
++#endif
+
+diff --git a/source/fitz/load-webp.c b/source/fitz/load-webp.c
+index 000000000000..45603a90eb96 100644
+--- /dev/null
++++ b/source/fitz/load-webp.c
+@@ -0,0 +1,295 @@
++// Copyright (C) 2004-2022 Artifex Software, Inc.
++//
++// This file is part of MuPDF.
++//
++// MuPDF is free software: you can redistribute it and/or modify it under the
++// terms of the GNU Affero General Public License as published by the Free
++// Software Foundation, either version 3 of the License, or (at your option)
++// any later version.
++//
++// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
++// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
++// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
++// details.
++//
++// You should have received a copy of the GNU Affero General Public License
++// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
++//
++// Alternative licensing terms are available from the licensor.
++// For commercial licensing, see <https://www.artifex.com/> or contact
++// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
++// CA 94945, U.S.A., +1(415)492-9861, for further information.
++
++#include "mupdf/fitz.h"
++
++#include "image-imp.h"
++#include "pixmap-imp.h"
++
++#include <limits.h>
++#include <string.h>
++
++#include <webp/decode.h>
++#include <webp/demux.h>
++
++struct webp_info
++{
++	int width, height;
++	int xres, yres;
++	uint8_t orientation;
++	fz_colorspace *cs;
++};
++
++static uint32_t
++read_webp_exif_value(const unsigned char *data, int bytes, int big_endian)
++{
++	uint32_t value = 0;
++	if (!big_endian)
++		data += bytes;
++	for (; bytes > 0; --bytes)
++		value = (value << 8) | (big_endian ? *data++ : *--data);
++	return value;
++}
++
++static int
++webp_exif_resolution(uint32_t numerator, uint32_t denominator, int unit)
++{
++	uint64_t resolution;
++
++	if (!denominator)
++		return 0;
++	if (unit == 2)
++		resolution = (uint64_t)numerator / denominator;
++	else if (unit == 3)
++		resolution = (uint64_t)numerator * 254 / ((uint64_t)denominator * 100);
++	else
++		return 0;
++
++	return resolution > 0 && resolution <= INT_MAX ? (int)resolution : 0;
++}
++
++static void
++read_webp_exif(const WebPData *chunk, struct webp_info *info)
++{
++	static const uint8_t orientations[9] = { 0, 1, 5, 3, 7, 6, 4, 8, 2 };
++	const unsigned char *data = chunk->bytes;
++	size_t size = chunk->size, offset;
++	uint32_t xnum = 0, xden = 0, ynum = 0, yden = 0;
++	int big_endian, count, unit = 0, xres, yres;
++
++	/* WebP EXIF chunks may contain a TIFF header directly or an Exif prefix. */
++	if (size >= 6 && !memcmp(data, "Exif\0\0", 6))
++	{
++		data += 6;
++		size -= 6;
++	}
++	if (size < 8)
++		return;
++	if (!memcmp(data, "II", 2))
++		big_endian = 0;
++	else if (!memcmp(data, "MM", 2))
++		big_endian = 1;
++	else
++		return;
++	if (read_webp_exif_value(data + 2, 2, big_endian) != 42)
++		return;
++
++	offset = read_webp_exif_value(data + 4, 4, big_endian);
++	if (offset < 8 || offset > size - 2)
++		return;
++	count = read_webp_exif_value(data + offset, 2, big_endian);
++	offset += 2;
++	for (; count > 0 && offset <= size && size - offset >= 12; --count, offset += 12)
++	{
++		int tag = read_webp_exif_value(data + offset, 2, big_endian);
++		int type = read_webp_exif_value(data + offset + 2, 2, big_endian);
++		uint32_t n = read_webp_exif_value(data + offset + 4, 4, big_endian);
++		size_t value_offset = read_webp_exif_value(data + offset + 8, 4, big_endian);
++
++		if (n != 1)
++			continue;
++		if (tag == 0x112 && type == 3)
++		{
++			unsigned int orientation = read_webp_exif_value(data + offset + 8, 2, big_endian);
++			if (orientation >= 1 && orientation <= 8)
++				info->orientation = orientations[orientation];
++		}
++		else if (tag == 0x128 && type == 3)
++			unit = read_webp_exif_value(data + offset + 8, 2, big_endian);
++		else if ((tag == 0x11A || tag == 0x11B) && type == 5 && value_offset <= size - 8)
++		{
++			uint32_t numerator = read_webp_exif_value(data + value_offset, 4, big_endian);
++			uint32_t denominator = read_webp_exif_value(data + value_offset + 4, 4, big_endian);
++			if (tag == 0x11A)
++			{
++				xnum = numerator;
++				xden = denominator;
++			}
++			else
++			{
++				ynum = numerator;
++				yden = denominator;
++			}
++		}
++	}
++
++	xres = webp_exif_resolution(xnum, xden, unit);
++	yres = webp_exif_resolution(ynum, yden, unit);
++	if (xres && yres)
++	{
++		info->xres = xres;
++		info->yres = yres;
++	}
++}
++
++static fz_colorspace *
++load_webp_icc_profile(fz_context *ctx, const WebPData *chunk)
++{
++	fz_colorspace *cs = NULL;
++#if FZ_ENABLE_ICC
++	fz_buffer *buf = NULL;
++
++	fz_var(buf);
++	fz_var(cs);
++
++	fz_try(ctx)
++	{
++		buf = fz_new_buffer_from_copied_data(ctx, chunk->bytes, chunk->size);
++		/* libwebp always decodes to RGB, regardless of the embedded profile. */
++		cs = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_RGB, 0, NULL, buf);
++	}
++	fz_always(ctx)
++		fz_drop_buffer(ctx, buf);
++	fz_catch(ctx)
++	{
++		fz_rethrow_if(ctx, FZ_ERROR_SYSTEM);
++		fz_report_error(ctx);
++		fz_warn(ctx, "ignoring embedded ICC profile in WebP");
++	}
++#else
++	(void)ctx;
++	(void)chunk;
++#endif
++	return cs;
++}
++
++static fz_pixmap *
++load_webp_image(fz_context *ctx, struct webp_info *info, const unsigned char *data, size_t size, int only_metadata)
++{
++	fz_pixmap *image = NULL;
++	WebPDemuxer *demux = NULL;
++	WebPBitstreamFeatures features;
++	WebPData webp_data;
++	WebPChunkIterator chunk;
++
++	fz_var(image);
++	fz_var(demux);
++
++	fz_try(ctx)
++	{
++		if (WebPGetFeatures(data, size, &features) != VP8_STATUS_OK)
++			fz_throw(ctx, FZ_ERROR_FORMAT, "unable to extract WebP features");
++
++		info->width = features.width;
++		info->height = features.height;
++		info->xres = 72;
++		info->yres = 72;
++		info->cs = fz_keep_colorspace(ctx, fz_device_rgb(ctx));
++
++		webp_data.bytes = data;
++		webp_data.size = size;
++		demux = WebPDemux(&webp_data);
++		if (demux)
++		{
++			if (WebPDemuxGetChunk(demux, "EXIF", 1, &chunk))
++			{
++				read_webp_exif(&chunk.chunk, info);
++				WebPDemuxReleaseChunkIterator(&chunk);
++			}
++			if (WebPDemuxGetChunk(demux, "ICCP", 1, &chunk))
++			{
++				fz_try(ctx)
++				{
++					fz_colorspace *cs = load_webp_icc_profile(ctx, &chunk.chunk);
++					if (cs)
++					{
++						fz_drop_colorspace(ctx, info->cs);
++						info->cs = cs;
++					}
++				}
++				fz_always(ctx)
++					WebPDemuxReleaseChunkIterator(&chunk);
++				fz_catch(ctx)
++					fz_rethrow(ctx);
++			}
++		}
++
++		if (!only_metadata)
++		{
++			unsigned char *samples;
++			image = fz_new_pixmap(ctx, info->cs, info->width, info->height, NULL, features.has_alpha);
++			fz_set_pixmap_resolution(ctx, image, info->xres, info->yres);
++
++			/* The external-buffer API validates the size and stride before writing. */
++			if (features.has_alpha)
++				samples = WebPDecodeRGBAInto(data, size, image->samples, (size_t)image->stride * image->h, (int)image->stride);
++			else
++				samples = WebPDecodeRGBInto(data, size, image->samples, (size_t)image->stride * image->h, (int)image->stride);
++			if (!samples)
++				fz_throw(ctx, FZ_ERROR_FORMAT, "failed decoding WebP image");
++			if (features.has_alpha)
++				fz_premultiply_pixmap(ctx, image);
++		}
++	}
++	fz_always(ctx)
++		WebPDemuxDelete(demux);
++	fz_catch(ctx)
++	{
++		fz_drop_pixmap(ctx, image);
++		fz_rethrow(ctx);
++	}
++
++	return image;
++}
++
++fz_pixmap *
++fz_load_webp(fz_context *ctx, const unsigned char *data, size_t size)
++{
++	fz_pixmap *image = NULL;
++	struct webp_info info = { 0 };
++
++	fz_var(image);
++	fz_var(info);
++
++	fz_try(ctx)
++		image = load_webp_image(ctx, &info, data, size, 0);
++	fz_always(ctx)
++		fz_drop_colorspace(ctx, info.cs);
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++
++	return image;
++}
++
++void
++fz_load_webp_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cs, uint8_t *orientation)
++{
++	struct webp_info info = { 0 };
++
++	fz_var(info);
++
++	fz_try(ctx)
++		load_webp_image(ctx, &info, data, size, 1);
++	fz_catch(ctx)
++	{
++		fz_drop_colorspace(ctx, info.cs);
++		fz_rethrow(ctx);
++	}
++
++	*w = info.width;
++	*h = info.height;
++	*xres = info.xres;
++	*yres = info.yres;
++	*cs = info.cs;
++	if (orientation)
++		*orientation = info.orientation;
++}
+
+diff --git a/source/tests/test-jxl.c b/source/tests/test-jxl.c
+index 000000000000..4f6d115648df 100644
+--- /dev/null
++++ b/source/tests/test-jxl.c
+@@ -0,0 +1,351 @@
++/* Run with make jxl=yes test-jxl; without jxl=yes this checks the disabled codec. */
++#include "mupdf/fitz.h"
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++static int checks;
++#define CHECK(ctx, condition) do { \
++	++checks; \
++	if (!(condition)) \
++		fz_throw(ctx, FZ_ERROR_GENERIC, "JPEG XL regression failed at line %d: %s", __LINE__, #condition); \
++} while (0)
++
++/* Tiny fixtures encoded with libjxl 0.12.0; no encoder is needed to run the tests. */
++static const unsigned char jxl_rgb[] = {
++	0xff, 0x0a, 0x08, 0x10, 0x10, 0x09, 0x08, 0x02, 0x01, 0x00, 0xd0, 0x02,
++	0x4b, 0x18, 0x9b, 0x9c, 0x71, 0x84, 0x03, 0x38, 0x80, 0x03, 0x38, 0x20,
++	0x4a, 0xc0, 0x39, 0x05, 0x01, 0x00, 0x20, 0x44, 0x80, 0x08, 0x10, 0x01,
++	0x22, 0x40, 0xe4, 0xf9, 0x97, 0x7b, 0xfa, 0x1e, 0x5a, 0x67, 0xef, 0x53,
++	0x55, 0x75, 0x6f, 0x92, 0x24, 0x09, 0x01, 0x75, 0x77, 0x77, 0x77, 0x77,
++	0xf7, 0xff, 0xff, 0xff, 0x5b, 0xf5, 0x66, 0x66, 0x66, 0x66, 0xe0, 0xff,
++	0xfd, 0x7b, 0xfe, 0x7b, 0x68, 0xcc, 0x39, 0xe7, 0x5a, 0xfb, 0xdc, 0x9b,
++	0x24, 0x49, 0x42, 0x40, 0x55, 0x55, 0x55, 0x55, 0x55, 0xf5, 0xff, 0xff,
++	0xff, 0xdc, 0xfb, 0xba, 0xbb, 0xbb, 0xbb, 0xe1, 0xff, 0xfd, 0x7b, 0xfe,
++	0x7b, 0x68, 0xcc, 0x39, 0xe7, 0x5a, 0xfb, 0xdc, 0x9b, 0x24, 0x49, 0x42,
++	0x40, 0x55, 0x55, 0x55, 0x55, 0x55, 0xf5, 0xff, 0xff, 0xff, 0xdc, 0xfb,
++	0xba, 0xbb, 0xbb, 0xbb, 0xe1, 0xff, 0xfd, 0x7b, 0xfe, 0x7b, 0x68, 0xcc,
++	0x39, 0xe7, 0x5a, 0xfb, 0xdc, 0x9b, 0x24, 0x49, 0x42, 0x40, 0x55, 0x55,
++	0x55, 0x55, 0x55, 0xf5, 0xff, 0xff, 0xff, 0xdc, 0xfb, 0xba, 0xbb, 0xbb,
++	0xbb, 0x2f, 0x10, 0x05, 0x00, 0x87, 0xff, 0xd1, 0x7f, 0xf8, 0x73, 0xf4,
++	0x1f, 0xfe, 0x1c, 0xfe, 0x47, 0xff, 0xd1, 0x7f, 0xf8, 0x07, 0x53, 0x00,
++};
++
++static const unsigned char jxl_rgba[] = {
++	0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
++	0x00, 0x00, 0x00, 0x14, 0x66, 0x74, 0x79, 0x70, 0x6a, 0x78, 0x6c, 0x20,
++	0x00, 0x00, 0x00, 0x00, 0x6a, 0x78, 0x6c, 0x20, 0x00, 0x00, 0x00, 0xcf,
++	0x6a, 0x78, 0x6c, 0x63, 0xff, 0x0a, 0x08, 0x10, 0xb0, 0x12, 0x08, 0x08,
++	0x10, 0x00, 0xec, 0x02, 0x4b, 0x18, 0x9b, 0x9c, 0x71, 0x84, 0x03, 0x38,
++	0x80, 0x03, 0x38, 0x20, 0x4a, 0xc0, 0x39, 0x05, 0x01, 0x00, 0x20, 0x44,
++	0x80, 0x08, 0x10, 0x01, 0x22, 0x40, 0xe4, 0xf9, 0x97, 0x7b, 0xfa, 0x1e,
++	0x5a, 0x67, 0xef, 0x53, 0x55, 0x75, 0x6f, 0x92, 0x24, 0x09, 0x01, 0x75,
++	0x77, 0x77, 0x77, 0x77, 0xf7, 0xff, 0xff, 0xff, 0x5b, 0xf5, 0x66, 0x66,
++	0x66, 0x66, 0xe0, 0xff, 0xfd, 0x7b, 0xfe, 0x7b, 0x68, 0xcc, 0x39, 0xe7,
++	0x5a, 0xfb, 0xdc, 0x9b, 0x24, 0x49, 0x42, 0x40, 0x55, 0x55, 0x55, 0x55,
++	0x55, 0xf5, 0xff, 0xff, 0xff, 0xdc, 0xfb, 0xba, 0xbb, 0xbb, 0xbb, 0xe1,
++	0xff, 0xfd, 0x7b, 0xfe, 0x7b, 0x68, 0xcc, 0x39, 0xe7, 0x5a, 0xfb, 0xdc,
++	0x9b, 0x24, 0x49, 0x42, 0x40, 0x55, 0x55, 0x55, 0x55, 0x55, 0xf5, 0xff,
++	0xff, 0xff, 0xdc, 0xfb, 0xba, 0xbb, 0xbb, 0xbb, 0xe1, 0xff, 0xfd, 0x7b,
++	0xfe, 0x7b, 0x68, 0xcc, 0x39, 0xe7, 0x5a, 0xfb, 0xdc, 0x9b, 0x24, 0x49,
++	0x42, 0x40, 0x55, 0x55, 0x55, 0x55, 0x55, 0xf5, 0xff, 0xff, 0xff, 0xdc,
++	0xfb, 0xba, 0xbb, 0xbb, 0xbb, 0x2f, 0x20, 0x05, 0x00, 0x07, 0xfd, 0x31,
++	0x7f, 0xf8, 0x73, 0x0c, 0x1c, 0xfe, 0x47, 0xbf, 0xc3, 0xff, 0xe8, 0x3a,
++	0x5a, 0x39, 0xfa, 0x9f, 0x80, 0x03, 0xe0, 0xe9, 0x2f, 0x94, 0x0c,
++};
++
++static const unsigned char jxl_gray16[] = {
++	0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
++	0x00, 0x00, 0x00, 0x14, 0x66, 0x74, 0x79, 0x70, 0x6a, 0x78, 0x6c, 0x20,
++	0x00, 0x00, 0x00, 0x00, 0x6a, 0x78, 0x6c, 0x20, 0x00, 0x00, 0x00, 0x09,
++	0x6a, 0x78, 0x6c, 0x6c, 0x0a, 0x00, 0x00, 0x00, 0xc8, 0x6a, 0x78, 0x6c,
++	0x63, 0xff, 0x0a, 0x08, 0x10, 0xfc, 0x00, 0xc5, 0x8d, 0x08, 0x02, 0x01,
++	0x00, 0xc8, 0x02, 0x4b, 0x18, 0x9b, 0x9c, 0x71, 0x84, 0x03, 0x38, 0x80,
++	0x03, 0x38, 0x20, 0x4a, 0xc0, 0x39, 0x05, 0x01, 0x00, 0x20, 0x44, 0x80,
++	0x08, 0x10, 0x01, 0x22, 0x40, 0x84, 0xff, 0xff, 0x3f, 0xf8, 0xff, 0xff,
++	0xa2, 0x3e, 0xc6, 0x18, 0x73, 0xae, 0xb5, 0xf7, 0xde, 0xe7, 0x9c, 0x73,
++	0x0e, 0x01, 0x45, 0x44, 0x44, 0x44, 0x44, 0x64, 0x66, 0x66, 0xde, 0xf7,
++	0x7e, 0x55, 0x55, 0x55, 0x15, 0xfc, 0xff, 0xff, 0xc1, 0xff, 0xff, 0x17,
++	0xf5, 0x31, 0xc6, 0x98, 0x73, 0xad, 0xbd, 0xf7, 0x3e, 0xe7, 0x9c, 0x73,
++	0x08, 0x28, 0x22, 0x22, 0x22, 0x22, 0x22, 0x33, 0x33, 0xf3, 0xbe, 0xf7,
++	0xab, 0xaa, 0xaa, 0xaa, 0xe0, 0xff, 0xff, 0x0f, 0xfe, 0xff, 0xbf, 0xa8,
++	0x8f, 0x31, 0xc6, 0x9c, 0x6b, 0xed, 0xbd, 0xf7, 0x39, 0xe7, 0x9c, 0x43,
++	0x40, 0x11, 0x11, 0x11, 0x11, 0x11, 0x99, 0x99, 0x99, 0xf7, 0xbd, 0x5f,
++	0x55, 0x55, 0x55, 0x05, 0xff, 0xff, 0x7f, 0xf0, 0xff, 0xff, 0x45, 0x7d,
++	0x8c, 0x31, 0xe6, 0x5c, 0x6b, 0xef, 0xbd, 0xcf, 0x39, 0xe7, 0x1c, 0x02,
++	0x8a, 0x88, 0x88, 0x88, 0x88, 0xc8, 0xcc, 0xcc, 0xbc, 0xef, 0xfd, 0xaa,
++	0xaa, 0xaa, 0xaa, 0xe1, 0xc7, 0xff, 0xff, 0x07, 0x00, 0xe0, 0xa7, 0xff,
++	0x0f,
++};
++
++static const unsigned char jxl_gray_alpha[] = {
++	0xff, 0x0a, 0x08, 0x10, 0xb0, 0x28, 0x6e, 0x04, 0x08, 0x08, 0x10, 0x00,
++	0xcc, 0x02, 0x4b, 0x18, 0x9b, 0x9c, 0x71, 0x84, 0x03, 0x38, 0x80, 0x03,
++	0x38, 0x20, 0x4a, 0xc0, 0x39, 0x05, 0x01, 0x00, 0x20, 0x44, 0x80, 0x08,
++	0x10, 0x01, 0x22, 0x40, 0xe4, 0xf9, 0x97, 0x7b, 0xfa, 0x1e, 0x5a, 0x67,
++	0xef, 0x53, 0x55, 0x75, 0x6f, 0x92, 0x24, 0x09, 0x01, 0x75, 0x77, 0x77,
++	0x77, 0x77, 0xf7, 0xff, 0xff, 0xff, 0x5b, 0xf5, 0x66, 0x66, 0x66, 0x66,
++	0xe0, 0xff, 0xfd, 0x7b, 0xfe, 0x7b, 0x68, 0xcc, 0x39, 0xe7, 0x5a, 0xfb,
++	0xdc, 0x9b, 0x24, 0x49, 0x42, 0x40, 0x55, 0x55, 0x55, 0x55, 0x55, 0xf5,
++	0xff, 0xff, 0xff, 0xdc, 0xfb, 0xba, 0xbb, 0xbb, 0xbb, 0xe1, 0xff, 0xfd,
++	0x7b, 0xfe, 0x7b, 0x68, 0xcc, 0x39, 0xe7, 0x5a, 0xfb, 0xdc, 0x9b, 0x24,
++	0x49, 0x42, 0x40, 0x55, 0x55, 0x55, 0x55, 0x55, 0xf5, 0xff, 0xff, 0xff,
++	0xdc, 0xfb, 0xba, 0xbb, 0xbb, 0xbb, 0xe1, 0xff, 0xfd, 0x7b, 0xfe, 0x7b,
++	0x68, 0xcc, 0x39, 0xe7, 0x5a, 0xfb, 0xdc, 0x9b, 0x24, 0x49, 0x42, 0x40,
++	0x55, 0x55, 0x55, 0x55, 0x55, 0xf5, 0xff, 0xff, 0xff, 0xdc, 0xfb, 0xba,
++	0xbb, 0xbb, 0xbb, 0x2f, 0x70, 0x00, 0xa0, 0x00, 0x70, 0x00, 0x3c, 0xfe,
++	0xc3, 0xef, 0xe8, 0xf7, 0xfc, 0x1f, 0x00, 0x47, 0xdf, 0xe1, 0x5f, 0x78,
++	0x0a,
++};
++
++static const unsigned char jxl_oriented[] = {
++	0xff, 0x0a, 0x08, 0x40, 0x0b, 0xc4, 0x04, 0x08, 0x02, 0x01, 0x00, 0xd8,
++	0x02, 0x4b, 0x18, 0x9b, 0x9c, 0x71, 0x84, 0x03, 0x38, 0x80, 0x03, 0x38,
++	0x20, 0x4a, 0xc0, 0x39, 0x05, 0x01, 0x00, 0x20, 0x44, 0x80, 0x08, 0x10,
++	0x01, 0x22, 0x40, 0xe4, 0xf9, 0x97, 0x7b, 0xfa, 0x1e, 0x5a, 0x67, 0xef,
++	0x53, 0x55, 0x75, 0x6f, 0x92, 0x24, 0x09, 0x01, 0x75, 0x77, 0x77, 0x77,
++	0x77, 0xf7, 0xff, 0xff, 0xff, 0x5b, 0xf5, 0x66, 0x66, 0x66, 0x66, 0xe0,
++	0xff, 0xfd, 0x7b, 0xfe, 0x7b, 0x68, 0xcc, 0x39, 0xe7, 0x5a, 0xfb, 0xdc,
++	0x9b, 0x24, 0x49, 0x42, 0x40, 0x55, 0x55, 0x55, 0x55, 0x55, 0xf5, 0xff,
++	0xff, 0xff, 0xdc, 0xfb, 0xba, 0xbb, 0xbb, 0xbb, 0xe1, 0xff, 0xfd, 0x7b,
++	0xfe, 0x7b, 0x68, 0xcc, 0x39, 0xe7, 0x5a, 0xfb, 0xdc, 0x9b, 0x24, 0x49,
++	0x42, 0x40, 0x55, 0x55, 0x55, 0x55, 0x55, 0xf5, 0xff, 0xff, 0xff, 0xdc,
++	0xfb, 0xba, 0xbb, 0xbb, 0xbb, 0xe1, 0xff, 0xfd, 0x7b, 0xfe, 0x7b, 0x68,
++	0xcc, 0x39, 0xe7, 0x5a, 0xfb, 0xdc, 0x9b, 0x24, 0x49, 0x42, 0x40, 0x55,
++	0x55, 0x55, 0x55, 0x55, 0xf5, 0xff, 0xff, 0xff, 0xdc, 0xfb, 0xba, 0xbb,
++	0xbb, 0xbb, 0x2f, 0x10, 0x06, 0x00, 0x87, 0xff, 0xd1, 0x7f, 0xf8, 0xe3,
++	0xe8, 0x3f, 0xfc, 0x71, 0xf8, 0x1f, 0xfd, 0x47, 0xbf, 0xc3, 0x3f, 0x98,
++	0xc7, 0xa6, 0x00,
++};
++
++static const unsigned char jxl_lossy[] = {
++	0xff, 0x0a, 0x08, 0x90, 0x01, 0x00, 0x13, 0x08, 0x01, 0x00, 0xd4, 0x00,
++	0x67, 0x13, 0x28, 0x01, 0x00, 0x50, 0xa1, 0x32, 0xca, 0xb8, 0xc1, 0xcb,
++	0xb9, 0x9e, 0x2f, 0x3f, 0x74, 0x58, 0x4c, 0xdb, 0xb8, 0xce, 0xd0, 0x56,
++	0xdb, 0x16, 0x96, 0x24, 0x8a, 0x8c, 0x63, 0x93, 0x74, 0x02, 0x87, 0x24,
++	0xb1, 0x08, 0x6c, 0x5c, 0x80, 0x0c, 0x00, 0x36, 0x80, 0x99, 0xc3, 0x3a,
++	0xd3, 0x01, 0x62, 0x25, 0x09,
++};
++
++static const unsigned char jxl_animated[] = {
++	0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
++	0x00, 0x00, 0x00, 0x14, 0x66, 0x74, 0x79, 0x70, 0x6a, 0x78, 0x6c, 0x20,
++	0x00, 0x00, 0x00, 0x00, 0x6a, 0x78, 0x6c, 0x20, 0x00, 0x00, 0x00, 0x2c,
++	0x6a, 0x78, 0x6c, 0x70, 0x00, 0x00, 0x00, 0x00, 0xff, 0x0a, 0x08, 0x10,
++	0x41, 0x13, 0x00, 0x88, 0x09, 0x08, 0x00, 0x01, 0x00, 0x44, 0x00, 0x4b,
++	0x12, 0xa5, 0x42, 0x85, 0x24, 0x92, 0x37, 0xb5, 0xdc, 0xbb, 0x40, 0x00,
++	0x00, 0x21, 0x30, 0x10, 0x00, 0x00, 0x00, 0x1a, 0x6a, 0x78, 0x6c, 0x70,
++	0x80, 0x00, 0x00, 0x01, 0x08, 0x00, 0x05, 0x00, 0x20, 0x00, 0x4b, 0x12,
++	0xa5, 0x42, 0x85, 0x24, 0x1c, 0x00,
++};
++
++
++
++struct test_state
++{
++	int fail_after;
++	int failing;
++	int unhandled;
++};
++
++static void *
++test_malloc(void *opaque, size_t size)
++{
++	struct test_state *state = opaque;
++	if (state->fail_after > 0 && --state->fail_after == 0)
++		state->failing = 1;
++	return state->failing ? NULL : malloc(size);
++}
++
++static void *
++test_realloc(void *opaque, void *ptr, size_t size)
++{
++	struct test_state *state = opaque;
++	if (state->fail_after > 0 && --state->fail_after == 0)
++		state->failing = 1;
++	return state->failing ? NULL : realloc(ptr, size);
++}
++
++static void
++test_free(void *opaque, void *ptr)
++{
++	(void)opaque;
++	free(ptr);
++}
++
++static void
++test_message(void *opaque, const char *message)
++{
++	struct test_state *state = opaque;
++	if (strstr(message, "UNHANDLED EXCEPTION"))
++		state->unhandled = 1;
++}
++
++#if FZ_ENABLE_JXL
++
++static const unsigned char rgb[] = {255,0,0,0,255,0,0,0,255,255,255,255};
++static const unsigned char rgba[] = {255,0,0,255,0,128,0,128,0,0,0,0,63,30,20,64};
++static const unsigned char gray[] = {0,255,128,64};
++static const unsigned char gray_alpha[] = {0,255,32,128,0,0,64,64};
++static const unsigned char oriented[] = {255,0,0,0,255,0,0,0,255,255,255,255,0,0,0,255,255,0};
++static const unsigned char lossy[] = {40,120,200,40,120,200,40,120,200,40,120,200};
++
++static void
++check_sample(fz_context *ctx, const unsigned char *data, size_t size, const unsigned char *expected,
++	int width, int height, int n, int alpha, int orientation, int tolerance)
++{
++	fz_buffer *buffer = NULL;
++	fz_image *image = NULL;
++	fz_pixmap *pixmap = NULL;
++	fz_var(buffer);
++	fz_var(image);
++	fz_var(pixmap);
++	fz_try(ctx)
++	{
++		int x, y, k;
++		buffer = fz_new_buffer_from_copied_data(ctx, data, size);
++		image = fz_new_image_from_buffer(ctx, buffer);
++		CHECK(ctx, image->w == width && image->h == height);
++		CHECK(ctx, image->xres == 72 && image->yres == 72);
++		CHECK(ctx, fz_image_orientation(ctx, image) == orientation);
++		pixmap = fz_get_unscaled_pixmap_from_image(ctx, image);
++		CHECK(ctx, pixmap->w == width && pixmap->h == height);
++		CHECK(ctx, pixmap->n == n && pixmap->alpha == alpha);
++		CHECK(ctx, fz_colorspace_n(ctx, pixmap->colorspace) == n - alpha);
++		CHECK(ctx, fz_colorspace_type(ctx, pixmap->colorspace) == (n - alpha == 1 ? FZ_COLORSPACE_GRAY : FZ_COLORSPACE_RGB));
++#if FZ_ENABLE_ICC
++		CHECK(ctx, fz_colorspace_is_icc(ctx, pixmap->colorspace));
++#endif
++		for (y = 0; y < height; ++y)
++			for (x = 0; x < width; ++x)
++				for (k = 0; k < n; ++k)
++					CHECK(ctx, abs(pixmap->samples[y * pixmap->stride + x * n + k] - expected[(y * width + x) * n + k]) <= tolerance);
++	}
++	fz_always(ctx)
++	{
++		fz_drop_pixmap(ctx, pixmap);
++		fz_drop_image(ctx, image);
++		fz_drop_buffer(ctx, buffer);
++	}
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++}
++
++static void
++check_allocation_failures(fz_context *ctx, struct test_state *state)
++{
++	fz_buffer *buffer = fz_new_buffer_from_copied_data(ctx, jxl_rgba, sizeof(jxl_rgba));
++	fz_try(ctx)
++	{
++		int i;
++		for (i = 1; i <= 40; ++i)
++		{
++			fz_image *image = NULL;
++			fz_pixmap *pixmap = NULL;
++			int caught = 0;
++			fz_var(image);
++			fz_var(pixmap);
++			fz_var(caught);
++			state->fail_after = i;
++			fz_try(ctx)
++			{
++				image = fz_new_image_from_buffer(ctx, buffer);
++				pixmap = fz_get_unscaled_pixmap_from_image(ctx, image);
++			}
++			fz_always(ctx)
++			{
++				state->failing = state->fail_after = 0;
++				fz_drop_pixmap(ctx, pixmap);
++				fz_drop_image(ctx, image);
++			}
++			fz_catch(ctx)
++			{
++				caught = fz_caught(ctx);
++				fz_report_error(ctx);
++			}
++			CHECK(ctx, caught == FZ_ERROR_SYSTEM);
++		}
++	}
++	fz_always(ctx)
++		fz_drop_buffer(ctx, buffer);
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++	check_sample(ctx, jxl_rgb, sizeof(jxl_rgb), rgb, 2, 2, 3, 0, 1, 0);
++}
++#endif
++
++static void
++check_error(fz_context *ctx, const unsigned char *data, size_t size, int expected)
++{
++	fz_buffer *buffer = fz_new_buffer_from_copied_data(ctx, data, size);
++	fz_image *image = NULL;
++	fz_pixmap *pixmap = NULL;
++	int caught = 0;
++	fz_var(image);
++	fz_var(pixmap);
++	fz_var(caught);
++	fz_try(ctx)
++	{
++		image = fz_new_image_from_buffer(ctx, buffer);
++		pixmap = fz_get_unscaled_pixmap_from_image(ctx, image);
++	}
++	fz_always(ctx)
++	{
++		fz_drop_pixmap(ctx, pixmap);
++		fz_drop_image(ctx, image);
++		fz_drop_buffer(ctx, buffer);
++	}
++	fz_catch(ctx)
++	{
++		caught = fz_caught(ctx);
++		fz_report_error(ctx);
++	}
++	CHECK(ctx, caught == expected);
++}
++
++int
++main(void)
++{
++	struct test_state state = { 0 };
++	fz_alloc_context alloc = { &state, test_malloc, test_realloc, test_free };
++	fz_context *ctx = fz_new_context(&alloc, NULL, FZ_STORE_DEFAULT);
++	int failed = 0;
++	fz_var(state);
++	fz_var(failed);
++	if (!ctx)
++		return 1;
++	fz_set_error_callback(ctx, test_message, &state);
++	fz_set_warning_callback(ctx, test_message, &state);
++	fz_try(ctx)
++	{
++		CHECK(ctx, fz_lookup_image_type("jxl") == FZ_IMAGE_JXL);
++		CHECK(ctx, !strcmp(fz_image_type_name(FZ_IMAGE_JXL), "jxl"));
++#if FZ_ENABLE_JXL
++		check_sample(ctx, jxl_rgb, sizeof(jxl_rgb), rgb, 2, 2, 3, 0, 1, 0);
++		check_sample(ctx, jxl_rgba, sizeof(jxl_rgba), rgba, 2, 2, 4, 1, 1, 0);
++		check_sample(ctx, jxl_gray16, sizeof(jxl_gray16), gray, 2, 2, 1, 0, 1, 1);
++		check_sample(ctx, jxl_gray_alpha, sizeof(jxl_gray_alpha), gray_alpha, 2, 2, 2, 1, 1, 1);
++		check_sample(ctx, jxl_oriented, sizeof(jxl_oriented), oriented, 3, 2, 3, 0, 4, 0);
++		check_sample(ctx, jxl_lossy, sizeof(jxl_lossy), lossy, 2, 2, 3, 0, 1, 5);
++		check_sample(ctx, jxl_animated, sizeof(jxl_animated), rgb, 2, 2, 3, 0, 1, 0);
++		check_error(ctx, jxl_rgb, 8, FZ_ERROR_FORMAT);
++		check_error(ctx, jxl_rgba, 12, FZ_ERROR_FORMAT);
++		check_allocation_failures(ctx, &state);
++#else
++		check_error(ctx, jxl_rgb, sizeof(jxl_rgb), FZ_ERROR_UNSUPPORTED);
++		check_error(ctx, jxl_rgba, sizeof(jxl_rgba), FZ_ERROR_UNSUPPORTED);
++#endif
++		CHECK(ctx, !state.unhandled);
++	}
++	fz_catch(ctx)
++	{
++		fprintf(stderr, "%s\n", fz_caught_message(ctx));
++		fz_report_error(ctx);
++		failed = 1;
++	}
++	fz_drop_context(ctx);
++	if (!failed)
++		printf("JPEG XL %s tests passed (%d checks)\n", FZ_ENABLE_JXL ? "decoder" : "disabled-build", checks);
++	return failed;
++}
+
+diff --git a/source/tests/test-webp.c b/source/tests/test-webp.c
+index 000000000000..2a00fb4d7a4d 100644
+--- /dev/null
++++ b/source/tests/test-webp.c
+@@ -0,0 +1,445 @@
++/* Run from the repository root with: make build=debug test-webp */
++#include "mupdf/fitz.h"
++
++#include <limits.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++static int checks;
++#define CHECK(ctx, condition) do { \
++	++checks; \
++	if (!(condition)) \
++		fz_throw(ctx, FZ_ERROR_GENERIC, "WebP regression failed at line %d: %s", __LINE__, #condition); \
++} while (0)
++
++/* 2 by 2 fixtures encoded with libwebp 1.6.0. */
++static const unsigned char webp_rgb[] = {
++	0x52, 0x49, 0x46, 0x46, 0x2c, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
++	0x56, 0x50, 0x38, 0x4c, 0x1f, 0x00, 0x00, 0x00, 0x2f, 0x01, 0x40, 0x00,
++	0x00, 0x1f, 0x20, 0x10, 0x48, 0xde, 0x1f, 0x3a, 0x8d, 0xf9, 0x17, 0x10,
++	0x14, 0xfc, 0x1f, 0xdd, 0xfc, 0x47, 0x64, 0x0f, 0xe0, 0x06, 0x0c, 0x11,
++	0xfd, 0x0f, 0x01, 0x00,
++};
++
++static const unsigned char webp_rgba[] = {
++	0x52, 0x49, 0x46, 0x46, 0x38, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
++	0x56, 0x50, 0x38, 0x4c, 0x2b, 0x00, 0x00, 0x00, 0x2f, 0x01, 0x40, 0x00,
++	0x10, 0x1f, 0x20, 0x10, 0x48, 0xd2, 0x9e, 0x7e, 0x0d, 0x05, 0x69, 0x1b,
++	0x30, 0x9b, 0x7f, 0xc7, 0x7f, 0xa0, 0x04, 0x02, 0x84, 0x75, 0x67, 0xce,
++	0x04, 0xc0, 0x3d, 0x99, 0x06, 0x25, 0x01, 0x02, 0xa0, 0x28, 0x23, 0x11,
++	0xfd, 0x0f, 0x06, 0x00,
++};
++
++static const unsigned char webp_lossy[] = {
++	0x52, 0x49, 0x46, 0x46, 0x3c, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
++	0x56, 0x50, 0x38, 0x20, 0x30, 0x00, 0x00, 0x00, 0x10, 0x02, 0x00, 0x9d,
++	0x01, 0x2a, 0x02, 0x00, 0x02, 0x00, 0x01, 0x00, 0x1c, 0x25, 0xa0, 0x02,
++	0x74, 0xba, 0x01, 0xf8, 0x01, 0xf8, 0x00, 0x03, 0xc8, 0x00, 0xfe, 0xee,
++	0x0a, 0x67, 0xfe, 0xca, 0xbe, 0x13, 0x23, 0xff, 0x6a, 0xbf, 0xfe, 0xb2,
++	0xab, 0xe4, 0xa8, 0xfd, 0xb3, 0x00, 0x00, 0x00,
++};
++
++static const unsigned char webp_lossy_alpha[] = {
++	0x52, 0x49, 0x46, 0x46, 0x66, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
++	0x56, 0x50, 0x38, 0x58, 0x0a, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
++	0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x41, 0x4c, 0x50, 0x48, 0x05, 0x00,
++	0x00, 0x00, 0x00, 0xff, 0x80, 0x00, 0x40, 0x00, 0x56, 0x50, 0x38, 0x20,
++	0x3a, 0x00, 0x00, 0x00, 0x70, 0x02, 0x00, 0x9d, 0x01, 0x2a, 0x02, 0x00,
++	0x02, 0x00, 0x01, 0x00, 0x1c, 0x25, 0xa0, 0x02, 0x74, 0xba, 0x01, 0xf8,
++	0x01, 0xf8, 0x00, 0x03, 0x44, 0x77, 0xa3, 0x40, 0x00, 0xfe, 0x6c, 0xdc,
++	0x54, 0x87, 0xd7, 0x5b, 0x6c, 0x0a, 0x42, 0xc5, 0xff, 0xfe, 0xbd, 0x10,
++	0x78, 0x83, 0x7e, 0xb4, 0x1f, 0xfd, 0x83, 0xa9, 0xb7, 0xaf, 0x7e, 0x3c,
++	0x00, 0x00,
++};
++
++
++
++static const unsigned char rgb_samples[] = { 255,0,0, 0,255,0, 0,0,255, 255,255,255 };
++static const unsigned char rgba_samples[] = { 255,0,0,255, 0,128,0,128, 0,0,0,0, 63,30,20,64 };
++static const unsigned char lossy_samples[] = { 40,120,200, 40,120,200, 40,120,200, 40,120,200 };
++
++struct test_state
++{
++	size_t fail_size;
++	int allocation_failed;
++	int unhandled;
++};
++
++static void *
++test_malloc(void *user, size_t size)
++{
++	struct test_state *state = user;
++	if (state->fail_size && state->fail_size == size)
++	{
++		state->allocation_failed = 1;
++		return NULL;
++	}
++	return malloc(size);
++}
++
++static void *
++test_realloc(void *user, void *ptr, size_t size)
++{
++	struct test_state *state = user;
++	if (state->fail_size && state->fail_size == size)
++	{
++		state->allocation_failed = 1;
++		return NULL;
++	}
++	return realloc(ptr, size);
++}
++
++static void
++test_free(void *user, void *ptr)
++{
++	(void)user;
++	free(ptr);
++}
++
++static void
++test_message(void *user, const char *message)
++{
++	struct test_state *state = user;
++	if (strstr(message, "UNHANDLED EXCEPTION"))
++		state->unhandled = 1;
++}
++
++static void
++put16(unsigned char *p, unsigned int value, int big_endian)
++{
++	p[big_endian ? 1 : 0] = value;
++	p[big_endian ? 0 : 1] = value >> 8;
++}
++
++static void
++put32(unsigned char *p, uint32_t value, int big_endian)
++{
++	int i;
++	for (i = 0; i < 4; ++i)
++		p[big_endian ? 3 - i : i] = value >> (8 * i);
++}
++
++static void
++append_chunk(fz_context *ctx, fz_buffer *buffer, const char *tag, const unsigned char *data, size_t size)
++{
++	unsigned char length[4];
++	put32(length, (uint32_t)size, 0);
++	fz_append_data(ctx, buffer, tag, 4);
++	fz_append_data(ctx, buffer, length, 4);
++	fz_append_data(ctx, buffer, data, size);
++	if (size & 1)
++		fz_append_byte(ctx, buffer, 0);
++}
++
++static fz_buffer *
++new_test_webp(fz_context *ctx, int alpha, const unsigned char *icc, size_t icc_size, const unsigned char *exif, size_t exif_size)
++{
++	const unsigned char *sample = alpha ? webp_rgba : webp_rgb;
++	size_t sample_size = alpha ? sizeof(webp_rgba) : sizeof(webp_rgb);
++	unsigned char vp8x[10] = { 0 };
++	fz_buffer *buffer = fz_new_buffer(ctx, 128);
++
++	vp8x[0] = (icc ? 32 : 0) | (exif ? 8 : 0) | (alpha ? 16 : 0);
++	vp8x[4] = vp8x[7] = 1; /* 2 by 2 canvas */
++	fz_try(ctx)
++	{
++		unsigned char *data;
++		size_t size;
++		fz_append_data(ctx, buffer, "RIFF\0\0\0\0WEBP", 12);
++		append_chunk(ctx, buffer, "VP8X", vp8x, sizeof(vp8x));
++		if (icc)
++			append_chunk(ctx, buffer, "ICCP", icc, icc_size);
++		fz_append_data(ctx, buffer, sample + 12, sample_size - 12);
++		if (exif)
++			append_chunk(ctx, buffer, "EXIF", exif, exif_size);
++		size = fz_buffer_storage(ctx, buffer, &data);
++		put32(data + 4, (uint32_t)(size - 8), 0);
++	}
++	fz_catch(ctx)
++	{
++		fz_drop_buffer(ctx, buffer);
++		fz_rethrow(ctx);
++	}
++	return buffer;
++}
++
++static void
++check_image(fz_context *ctx, fz_buffer *buffer, const unsigned char *expected, int alpha, int tolerance, int xres, int yres, int orientation, int device)
++{
++	fz_image *image = NULL;
++	fz_pixmap *pixmap = NULL;
++
++	fz_var(image);
++	fz_var(pixmap);
++	fz_try(ctx)
++	{
++		int x, y, k;
++		image = fz_new_image_from_buffer(ctx, buffer);
++		CHECK(ctx, image->w == 2 && image->h == 2);
++		if (orientation >= 0)
++			CHECK(ctx, fz_image_orientation(ctx, image) == orientation);
++		if (xres >= 0)
++			CHECK(ctx, image->xres == xres && image->yres == yres);
++		pixmap = fz_get_unscaled_pixmap_from_image(ctx, image);
++		CHECK(ctx, pixmap->w == 2 && pixmap->h == 2);
++		CHECK(ctx, pixmap->n == 3 + alpha && pixmap->alpha == alpha);
++		CHECK(ctx, fz_colorspace_type(ctx, pixmap->colorspace) == FZ_COLORSPACE_RGB);
++		if (device >= 0)
++			CHECK(ctx, fz_colorspace_is_device(ctx, pixmap->colorspace) == device);
++		if (xres >= 0)
++			CHECK(ctx, pixmap->xres == xres && pixmap->yres == yres);
++		if (alpha)
++			for (y = 0; y < 2; ++y)
++				for (x = 0; x < 2; ++x)
++				{
++					unsigned char *pixel = pixmap->samples + y * pixmap->stride + x * 4;
++					CHECK(ctx, pixel[3] == rgba_samples[(y * 2 + x) * 4 + 3]);
++					CHECK(ctx, pixel[0] <= pixel[3] && pixel[1] <= pixel[3] && pixel[2] <= pixel[3]);
++				}
++		if (expected)
++			for (y = 0; y < 2; ++y)
++				for (x = 0; x < 2; ++x)
++					for (k = 0; k < pixmap->n; ++k)
++						CHECK(ctx, abs(pixmap->samples[y * pixmap->stride + x * pixmap->n + k] - expected[(y * 2 + x) * pixmap->n + k]) <= tolerance);
++	}
++	fz_always(ctx)
++	{
++		fz_drop_pixmap(ctx, pixmap);
++		fz_drop_image(ctx, image);
++	}
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++}
++
++static void
++check_sample(fz_context *ctx, const unsigned char *data, size_t size, const unsigned char *expected, int alpha, int tolerance)
++{
++	fz_buffer *buffer = fz_new_buffer_from_copied_data(ctx, data, size);
++	fz_try(ctx)
++		check_image(ctx, buffer, expected, alpha, tolerance, 72, 72, 0, 1);
++	fz_always(ctx)
++		fz_drop_buffer(ctx, buffer);
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++}
++
++static void
++check_icc(fz_context *ctx, const char *path, int rgb, int alpha)
++{
++	fz_buffer *profile = NULL;
++	fz_buffer *buffer = NULL;
++	fz_var(profile);
++	fz_var(buffer);
++	fz_try(ctx)
++	{
++		unsigned char *data;
++		size_t size;
++		profile = fz_read_file(ctx, path);
++		size = fz_buffer_storage(ctx, profile, &data);
++		buffer = new_test_webp(ctx, alpha, data, size, NULL, 0);
++		check_image(ctx, buffer, alpha ? rgba_samples : rgb_samples, alpha, 0, 72, 72, 0, !(rgb && FZ_ENABLE_ICC));
++	}
++	fz_always(ctx)
++	{
++		fz_drop_buffer(ctx, buffer);
++		fz_drop_buffer(ctx, profile);
++	}
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++}
++
++static void
++check_icc_allocation_failure(fz_context *ctx, struct test_state *state)
++{
++#if FZ_ENABLE_ICC
++	fz_buffer *profile = NULL;
++	fz_buffer *buffer = NULL;
++	fz_image *image = NULL;
++	int caught = 0;
++	fz_var(profile);
++	fz_var(buffer);
++	fz_var(image);
++	fz_var(caught);
++	fz_try(ctx)
++	{
++		unsigned char *data;
++		size_t size;
++		profile = fz_read_file(ctx, "resources/icc/rgb.icc");
++		size = fz_buffer_storage(ctx, profile, &data);
++		buffer = new_test_webp(ctx, 0, data, size, NULL, 0);
++		state->fail_size = size;
++		fz_try(ctx)
++			image = fz_new_image_from_buffer(ctx, buffer);
++		fz_always(ctx)
++			state->fail_size = 0;
++		fz_catch(ctx)
++		{
++			caught = fz_caught(ctx);
++			fz_report_error(ctx);
++		}
++		CHECK(ctx, state->allocation_failed);
++		CHECK(ctx, caught == FZ_ERROR_SYSTEM);
++		/* A fatal ICC error must not poison the next ordinary decode. */
++		check_image(ctx, buffer, rgb_samples, 0, 0, 72, 72, 0, 0);
++	}
++	fz_always(ctx)
++	{
++		state->fail_size = 0;
++		fz_drop_image(ctx, image);
++		fz_drop_buffer(ctx, buffer);
++		fz_drop_buffer(ctx, profile);
++	}
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++#else
++	(void)ctx;
++	(void)state;
++#endif
++}
++
++static void
++make_exif(unsigned char data[78], int big_endian, uint32_t numerator, uint32_t denominator, int unit)
++{
++	static const unsigned int tags[] = { 0x112, 0x11A, 0x11B, 0x128 };
++	int i;
++	memset(data, 0, 78);
++	memcpy(data, big_endian ? "MM" : "II", 2);
++	put16(data + 2, 42, big_endian);
++	put32(data + 4, 8, big_endian);
++	put16(data + 8, 4, big_endian);
++	for (i = 0; i < 4; ++i)
++	{
++		unsigned char *entry = data + 10 + 12 * i;
++		put16(entry, tags[i], big_endian);
++		put16(entry + 2, i == 0 || i == 3 ? 3 : 5, big_endian);
++		put32(entry + 4, 1, big_endian);
++	}
++	put16(data + 18, 6, big_endian);
++	put32(data + 30, 62, big_endian);
++	put32(data + 42, 70, big_endian);
++	put16(data + 54, unit, big_endian);
++	put32(data + 62, numerator, big_endian);
++	put32(data + 66, denominator, big_endian);
++	put32(data + 70, numerator, big_endian);
++	put32(data + 74, denominator, big_endian);
++}
++
++static void
++check_exif(fz_context *ctx, const unsigned char *data, size_t size, int xres, int yres, int orientation)
++{
++	fz_buffer *buffer = new_test_webp(ctx, 0, NULL, 0, data, size);
++	fz_try(ctx)
++		check_image(ctx, buffer, rgb_samples, 0, 0, xres, yres, orientation, 1);
++	fz_always(ctx)
++		fz_drop_buffer(ctx, buffer);
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++}
++
++static void
++check_bad_icc_and_image(fz_context *ctx)
++{
++	const unsigned char invalid_icc[] = { 1, 2, 3, 4 };
++	fz_buffer *buffer = new_test_webp(ctx, 0, invalid_icc, sizeof(invalid_icc), NULL, 0);
++	fz_image *image = NULL;
++	int caught = 0;
++	fz_var(image);
++	fz_var(caught);
++	fz_try(ctx)
++	{
++		check_image(ctx, buffer, rgb_samples, 0, 0, 72, 72, 0, 1);
++		/* Recovery from a bad profile must consume its pending exception. */
++		fz_try(ctx)
++			fz_throw(ctx, FZ_ERROR_FORMAT, "expected regression-test exception");
++		fz_catch(ctx)
++			fz_report_error(ctx);
++		fz_clear_buffer(ctx, buffer);
++		fz_append_data(ctx, buffer, webp_rgb, 20);
++		fz_try(ctx)
++			image = fz_new_image_from_buffer(ctx, buffer);
++		fz_catch(ctx)
++		{
++			caught = fz_caught(ctx);
++			fz_report_error(ctx);
++		}
++		CHECK(ctx, caught == FZ_ERROR_FORMAT);
++	}
++	fz_always(ctx)
++	{
++		fz_drop_image(ctx, image);
++		fz_drop_buffer(ctx, buffer);
++	}
++	fz_catch(ctx)
++		fz_rethrow(ctx);
++}
++
++int
++main(void)
++{
++	struct test_state state = { 0 };
++	fz_alloc_context alloc = { &state, test_malloc, test_realloc, test_free };
++	fz_context *ctx = fz_new_context(&alloc, NULL, FZ_STORE_DEFAULT);
++	int failed = 0;
++
++	fz_var(state);
++	fz_var(failed);
++	if (!ctx)
++		return 1;
++	fz_set_warning_callback(ctx, test_message, &state);
++	fz_set_error_callback(ctx, test_message, &state);
++	fz_try(ctx)
++	{
++		unsigned char exif[78], prefixed[84];
++		size_t i;
++		CHECK(ctx, fz_lookup_image_type("webp") == FZ_IMAGE_WEBP);
++		CHECK(ctx, !strcmp(fz_image_type_name(FZ_IMAGE_WEBP), "webp"));
++		check_sample(ctx, webp_rgb, sizeof(webp_rgb), rgb_samples, 0, 0);
++		check_sample(ctx, webp_rgba, sizeof(webp_rgba), rgba_samples, 1, 0);
++		check_sample(ctx, webp_lossy, sizeof(webp_lossy), lossy_samples, 0, 5);
++		check_sample(ctx, webp_lossy_alpha, sizeof(webp_lossy_alpha), NULL, 1, 0);
++		check_icc(ctx, "resources/icc/rgb.icc", 1, 0);
++		check_icc(ctx, "resources/icc/gray.icc", 0, 0);
++		check_icc(ctx, "resources/icc/lab.icc", 0, 0);
++		check_icc(ctx, "resources/icc/cmyk.icc", 0, 0);
++		check_icc(ctx, "resources/icc/cmyk.icc", 0, 1);
++		check_bad_icc_and_image(ctx);
++		check_icc_allocation_failure(ctx, &state);
++		make_exif(exif, 0, 300, 1, 2);
++		check_exif(ctx, exif, sizeof(exif), 300, 300, 4);
++		put32(exif + 70, 600, 0);
++		check_exif(ctx, exif, sizeof(exif), 300, 600, 4);
++		make_exif(exif, 1, 100, 1, 3);
++		check_exif(ctx, exif, sizeof(exif), 254, 254, 4);
++		memcpy(prefixed, "Exif\0\0", 6);
++		memcpy(prefixed + 6, exif, sizeof(exif));
++		check_exif(ctx, prefixed, sizeof(prefixed), 254, 254, 4);
++		make_exif(exif, 0, 1000000000, 1, 3);
++		check_exif(ctx, exif, sizeof(exif), 72, 72, 4);
++		make_exif(exif, 0, INT_MAX, 1, 2);
++		check_exif(ctx, exif, sizeof(exif), INT_MAX, INT_MAX, 4);
++		make_exif(exif, 0, UINT32_MAX, 1, 2);
++		check_exif(ctx, exif, sizeof(exif), 72, 72, 4);
++		make_exif(exif, 1, UINT32_MAX, UINT32_MAX, 2);
++		check_exif(ctx, exif, sizeof(exif), 1, 1, 4);
++		make_exif(exif, 0, 300, 0, 2);
++		check_exif(ctx, exif, sizeof(exif), 72, 72, 4);
++		make_exif(exif, 1, 300, 1, 2);
++		put32(exif + 30, UINT32_MAX, 1);
++		check_exif(ctx, exif, sizeof(exif), 72, 72, 4);
++		make_exif(exif, 0, 300, 1, 2);
++		for (i = 0; i < sizeof(exif); ++i)
++			check_exif(ctx, exif, i, 72, 72, -1);
++		CHECK(ctx, !state.unhandled);
++	}
++	fz_catch(ctx)
++	{
++		fprintf(stderr, "%s\n", fz_caught_message(ctx));
++		fz_report_error(ctx);
++		failed = 1;
++	}
++	fz_drop_context(ctx);
++	if (!failed)
++		printf("WebP regression tests passed (%d checks)\n", checks);
++	return failed;
++}
+
+diff --git a/thirdparty/libwebp b/thirdparty/libwebp
+old mode 100644
+new mode 160000
+index 000000000000..4fa219123383
+--- /dev/null
++++ b/thirdparty/libwebp
+@@ -0,0 +1 @@
++Subproject commit 4fa21912338357f89e4fd51cf2368325b59e9bd9

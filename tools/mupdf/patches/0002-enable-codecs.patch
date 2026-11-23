@@ -1,0 +1,370 @@
+# Extracted from vm75/mupdf commit 64dfe654548c4b53644f677a750ef9a4003f9b5b
+# Fork housekeeping and binary test fixtures intentionally excluded.
+
+diff --git a/Makerules b/Makerules
+index 3d690b813e06..e59160a8d7fb 100644
+--- a/Makerules
++++ b/Makerules
+@@ -11,15 +11,12 @@ WARNING_CFLAGS := -Wall -Wsign-compare -Wshadow -Wpointer-arith
+ 
+ build_suffix :=
+ 
+-ifeq ($(jxl),yes)
+-  build_suffix := $(build_suffix)-jxl
+-  CFLAGS += -DFZ_ENABLE_JXL=1
+-  USE_JXL := yes
+-  SYS_LIBJXL_CFLAGS ?= $(shell pkg-config --cflags 'libjxl >= 0.12.0' 2>/dev/null)
+-  SYS_LIBJXL_LIBS ?= $(shell pkg-config --libs 'libjxl >= 0.12.0' 2>/dev/null)
+-  ifeq ($(strip $(SYS_LIBJXL_LIBS)),)
+-    $(error jxl=yes requires libjxl >= 0.12.0; install its development package or set SYS_LIBJXL_CFLAGS and SYS_LIBJXL_LIBS)
+-  endif
++# Mirror config.h switches on the Make command line when explicitly supplied.
++ifneq ($(origin FZ_ENABLE_WEBP),undefined)
++  CFLAGS += -DFZ_ENABLE_WEBP=$(FZ_ENABLE_WEBP)
++endif
++ifneq ($(origin FZ_ENABLE_JXL),undefined)
++  CFLAGS += -DFZ_ENABLE_JXL=$(FZ_ENABLE_JXL)
+ endif
+ 
+ ifeq ($(brotli),no)
+@@ -418,3 +415,24 @@ ifeq "$(OS)" "pyodide"
+   HAVE_LIBCRYPTO=no
+   CFLAGS += -pthread
+ endif
++
++# Read the effective header configuration, including XCFLAGS and cross compiler
++# settings, so disabling a codec also removes its dependency from Make builds.
++CODEC_CONFIG := $(shell printf '%s\n' '#include "mupdf/fitz/config.h"' '#if FZ_ENABLE_WEBP' 'WEBP_ENABLED' '#endif' '#if FZ_ENABLE_JXL' 'JXL_ENABLED' '#endif' | $(CC) $(CFLAGS) $(XCFLAGS) -Iinclude -E -P -x c - 2>/dev/null || echo CODEC_CONFIG_ERROR)
++ifneq ($(filter CODEC_CONFIG_ERROR,$(CODEC_CONFIG)),)
++  $(error Cannot read codec configuration; check CC, CFLAGS and XCFLAGS)
++endif
++USE_WEBP := $(if $(filter WEBP_ENABLED,$(CODEC_CONFIG)),yes,no)
++USE_JXL := $(if $(filter JXL_ENABLED,$(CODEC_CONFIG)),yes,no)
++ifeq ($(USE_WEBP),no)
++  build_suffix := $(build_suffix)-no-webp
++endif
++ifeq ($(USE_JXL),no)
++  build_suffix := $(build_suffix)-no-jxl
++else
++  SYS_LIBJXL_CFLAGS ?= $(shell pkg-config --cflags 'libjxl >= 0.12.0' 2>/dev/null)
++  SYS_LIBJXL_LIBS ?= $(shell pkg-config --libs 'libjxl >= 0.12.0' 2>/dev/null)
++  ifeq ($(strip $(SYS_LIBJXL_LIBS)),)
++    $(error JPEG XL requires libjxl >= 0.12.0; install its development package, set SYS_LIBJXL_CFLAGS/SYS_LIBJXL_LIBS, or disable it with FZ_ENABLE_JXL=0)
++  endif
++endif
+
+diff --git a/Makethird b/Makethird
+index e5a4b32585ff..349f64a515a3 100644
+--- a/Makethird
++++ b/Makethird
+@@ -197,7 +197,7 @@ $(OUT)/thirdparty/libjpeg/%.o: thirdparty/libjpeg/%.c
+ 	$(CC_CMD) $(LIB_CFLAGS) $(LIBJPEG_CFLAGS) $(LIBJPEG_BUILD_CFLAGS)
+ endif
+ 
+-# --- LIBJXL (optional system library) ---
++# --- LIBJXL (system library) ---
+ 
+ ifeq ($(USE_JXL),yes)
+   THIRD_CFLAGS += $(SYS_LIBJXL_CFLAGS)
+@@ -206,6 +206,7 @@ endif
+ 
+ # --- LIBWEBP ---
+ 
++ifeq ($(USE_WEBP),yes)
+ ifeq ($(USE_SYSTEM_LIBWEBP),yes)
+   THIRD_CFLAGS += $(SYS_LIBWEBP_CFLAGS)
+   THIRD_LIBS += $(SYS_LIBWEBP_LIBS)
+@@ -216,6 +217,7 @@ else
+ $(OUT)/thirdparty/libwebp/%.o: thirdparty/libwebp/%.c
+ 	$(CC_CMD) $(LIB_CFLAGS) $(LIBWEBP_CFLAGS) $(LIBWEBP_BUILD_CFLAGS)
+ endif
++endif
+ 
+ # --- LCMS2 ---
+ 
+
+diff --git a/include/mupdf/fitz/config.h b/include/mupdf/fitz/config.h
+index 1be9938b4fe5..e470d5f84375 100644
+--- a/include/mupdf/fitz/config.h
++++ b/include/mupdf/fitz/config.h
+@@ -104,11 +104,16 @@
+ */
+ /* #define FZ_ENABLE_JPX 1 */
+ 
++/**
++	Choose whether to enable WebP decoding. Enabled by default.
++*/
++/* #define FZ_ENABLE_WEBP 1 */
++
+ /**
+ 	Choose whether to enable JPEG XL decoding using an external libjxl.
+-	By default, it is disabled. The Makefile enables it with jxl=yes.
++	Enabled by default.
+ */
+-/* #define FZ_ENABLE_JXL 0 */
++/* #define FZ_ENABLE_JXL 1 */
+ 
+ /**
+ 	Choose whether to enable Brotli compression support.
+@@ -288,8 +293,12 @@
+ #define FZ_ENABLE_JPX 1
+ #endif /* FZ_ENABLE_JPX */
+ 
++#ifndef FZ_ENABLE_WEBP
++#define FZ_ENABLE_WEBP 1
++#endif /* FZ_ENABLE_WEBP */
++
+ #ifndef FZ_ENABLE_JXL
+-#define FZ_ENABLE_JXL 0
++#define FZ_ENABLE_JXL 1
+ #endif /* FZ_ENABLE_JXL */
+ 
+ #ifndef FZ_ENABLE_BROTLI
+
+diff --git a/scripts/test-codec-config.py b/scripts/test-codec-config.py
+old mode 100644
+new mode 100755
+index 000000000000..6d7ee576a12d
+--- /dev/null
++++ b/scripts/test-codec-config.py
+@@ -0,0 +1,79 @@
++#!/usr/bin/env python3
++"""Check Make's effective codec switches without installing codec libraries."""
++
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++import unittest
++
++ROOT = Path(__file__).resolve().parent.parent
++PRINT = "fork-print-codecs: ; @echo CODECS $(USE_WEBP) $(USE_JXL) $(OUT)"
++
++
++class CodecConfigTests(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory(prefix="mupdf-codec-config-")
++        self.addCleanup(self.temp.cleanup)
++        self.env = os.environ.copy()
++        for key in ["CFLAGS", "XCFLAGS", "MAKEFLAGS", "MFLAGS", "MAKEOVERRIDES",
++                    "FZ_ENABLE_WEBP", "FZ_ENABLE_JXL", "SYS_LIBJXL_LIBS", "SYS_LIBJXL_CFLAGS"]:
++            self.env.pop(key, None)
++        self.env["PKG_CONFIG_PATH"] = ""
++        self.env["PKG_CONFIG_LIBDIR"] = self.temp.name
++
++    def config(self, *args, allow_library=True, ok=True):
++        command = ["make", "--no-print-directory", "-s", "--eval=" + PRINT]
++        if allow_library:
++            # Resolve policy without linking; runtime suites exercise real libjxl.
++            command += ["SYS_LIBJXL_CFLAGS=", "SYS_LIBJXL_LIBS=-ljxl"]
++        result = subprocess.run(command + list(args) + ["fork-print-codecs"], cwd=ROOT,
++                                env=self.env, text=True, capture_output=True)
++        if not ok:
++            self.assertNotEqual(result.returncode, 0)
++            return result.stderr
++        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++        fields = result.stdout.strip().split()
++        self.assertEqual(fields[0], "CODECS")
++        return fields[1:]
++
++    def test_default_both_enabled(self):
++        self.assertEqual(self.config(), ["yes", "yes", "build/release"])
++
++    def test_webp_can_be_disabled_independently(self):
++        self.assertEqual(self.config("FZ_ENABLE_WEBP=0"),
++                         ["no", "yes", "build/release-no-webp"])
++
++    def test_jxl_can_be_disabled_without_its_dependency(self):
++        self.assertEqual(self.config("FZ_ENABLE_JXL=0", allow_library=False),
++                         ["yes", "no", "build/release-no-jxl"])
++
++    def test_both_can_be_disabled(self):
++        self.assertEqual(self.config("FZ_ENABLE_WEBP=0", "FZ_ENABLE_JXL=0", allow_library=False),
++                         ["no", "no", "build/release-no-webp-no-jxl"])
++
++    def test_compiler_flags_are_honored(self):
++        self.assertEqual(self.config("XCFLAGS=-DFZ_ENABLE_WEBP=0 -DFZ_ENABLE_JXL=0", allow_library=False),
++                         ["no", "no", "build/release-no-webp-no-jxl"])
++
++    def test_config_header_settings_are_honored(self):
++        directory = Path(self.temp.name) / "include/mupdf/fitz"
++        directory.mkdir(parents=True)
++        header = (ROOT / "include/mupdf/fitz/config.h").read_text()
++        header = header.replace("#define FZ_ENABLE_WEBP 1", "#define FZ_ENABLE_WEBP 0")
++        header = header.replace("#define FZ_ENABLE_JXL 1", "#define FZ_ENABLE_JXL 0")
++        (directory / "config.h").write_text(header)
++        self.assertEqual(self.config("XCFLAGS=-I" + str(Path(self.temp.name) / "include"), allow_library=False),
++                         ["no", "no", "build/release-no-webp-no-jxl"])
++
++    def test_missing_enabled_dependency_does_not_silently_disable_jxl(self):
++        error = self.config(allow_library=False, ok=False)
++        self.assertIn("JPEG XL requires libjxl", error)
++        self.assertIn("FZ_ENABLE_JXL=0", error)
++
++    def test_bad_compiler_does_not_silently_disable_codecs(self):
++        self.assertIn("Cannot read codec configuration", self.config("CC=false", ok=False))
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/source/fitz/load-jxl.c b/source/fitz/load-jxl.c
+index 2c8bc3d38d56..de9cc3c4fcea 100644
+--- a/source/fitz/load-jxl.c
++++ b/source/fitz/load-jxl.c
+@@ -243,13 +243,13 @@ fz_load_jxl_info(fz_context *ctx, const unsigned char *data, size_t size, int *w
+ fz_pixmap *
+ fz_load_jxl(fz_context *ctx, const unsigned char *data, size_t size)
+ {
+-	fz_throw(ctx, FZ_ERROR_UNSUPPORTED, "JPEG XL support requires a build with libjxl (jxl=yes)");
++	fz_throw(ctx, FZ_ERROR_UNSUPPORTED, "JPEG XL support disabled");
+ }
+ 
+ void
+ fz_load_jxl_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cs, uint8_t *orientation)
+ {
+-	fz_throw(ctx, FZ_ERROR_UNSUPPORTED, "JPEG XL support requires a build with libjxl (jxl=yes)");
++	fz_throw(ctx, FZ_ERROR_UNSUPPORTED, "JPEG XL support disabled");
+ }
+ 
+ #endif
+
+diff --git a/source/fitz/load-webp.c b/source/fitz/load-webp.c
+index 45603a90eb96..4ee22b77431e 100644
+--- a/source/fitz/load-webp.c
++++ b/source/fitz/load-webp.c
+@@ -25,6 +25,8 @@
+ #include "image-imp.h"
+ #include "pixmap-imp.h"
+ 
++#if FZ_ENABLE_WEBP
++
+ #include <limits.h>
+ #include <string.h>
+ 
+@@ -293,3 +295,19 @@ fz_load_webp_info(fz_context *ctx, const unsigned char *data, size_t size, int *
+ 	if (orientation)
+ 		*orientation = info.orientation;
+ }
++
++#else
++
++fz_pixmap *
++fz_load_webp(fz_context *ctx, const unsigned char *data, size_t size)
++{
++	fz_throw(ctx, FZ_ERROR_UNSUPPORTED, "WebP support disabled");
++}
++
++void
++fz_load_webp_info(fz_context *ctx, const unsigned char *data, size_t size, int *w, int *h, int *xres, int *yres, fz_colorspace **cs, uint8_t *orientation)
++{
++	fz_throw(ctx, FZ_ERROR_UNSUPPORTED, "WebP support disabled");
++}
++
++#endif /* FZ_ENABLE_WEBP */
+
+diff --git a/source/tests/test-jxl.c b/source/tests/test-jxl.c
+index 4f6d115648df..0275280eb88c 100644
+--- a/source/tests/test-jxl.c
++++ b/source/tests/test-jxl.c
+@@ -1,4 +1,4 @@
+-/* Run with make jxl=yes test-jxl; without jxl=yes this checks the disabled codec. */
++/* Run with make test-jxl; FZ_ENABLE_JXL=0 checks disabled-codec behavior. */
+ #include "mupdf/fitz.h"
+ 
+ #include <stdio.h>
+
+diff --git a/source/tests/test-webp.c b/source/tests/test-webp.c
+index 2a00fb4d7a4d..1e4c20a2e207 100644
+--- a/source/tests/test-webp.c
++++ b/source/tests/test-webp.c
+@@ -55,10 +55,13 @@ static const unsigned char webp_lossy_alpha[] = {
+ 
+ 
+ 
++#if FZ_ENABLE_WEBP
+ static const unsigned char rgb_samples[] = { 255,0,0, 0,255,0, 0,0,255, 255,255,255 };
+ static const unsigned char rgba_samples[] = { 255,0,0,255, 0,128,0,128, 0,0,0,0, 63,30,20,64 };
+ static const unsigned char lossy_samples[] = { 40,120,200, 40,120,200, 40,120,200, 40,120,200 };
+ 
++#endif
++
+ struct test_state
+ {
+ 	size_t fail_size;
+@@ -105,6 +108,8 @@ test_message(void *user, const char *message)
+ 		state->unhandled = 1;
+ }
+ 
++#if FZ_ENABLE_WEBP
++
+ static void
+ put16(unsigned char *p, unsigned int value, int big_endian)
+ {
+@@ -374,6 +379,33 @@ check_bad_icc_and_image(fz_context *ctx)
+ 		fz_rethrow(ctx);
+ }
+ 
++#else
++
++static void
++check_disabled(fz_context *ctx, const unsigned char *data, size_t size)
++{
++	fz_buffer *buffer = fz_new_buffer_from_copied_data(ctx, data, size);
++	fz_image *image = NULL;
++	int caught = 0;
++	fz_var(image);
++	fz_var(caught);
++	fz_try(ctx)
++		image = fz_new_image_from_buffer(ctx, buffer);
++	fz_always(ctx)
++	{
++		fz_drop_image(ctx, image);
++		fz_drop_buffer(ctx, buffer);
++	}
++	fz_catch(ctx)
++	{
++		caught = fz_caught(ctx);
++		fz_report_error(ctx);
++	}
++	CHECK(ctx, caught == FZ_ERROR_UNSUPPORTED);
++}
++
++#endif
++
+ int
+ main(void)
+ {
+@@ -390,10 +422,13 @@ main(void)
+ 	fz_set_error_callback(ctx, test_message, &state);
+ 	fz_try(ctx)
+ 	{
++#if FZ_ENABLE_WEBP
+ 		unsigned char exif[78], prefixed[84];
+ 		size_t i;
++#endif
+ 		CHECK(ctx, fz_lookup_image_type("webp") == FZ_IMAGE_WEBP);
+ 		CHECK(ctx, !strcmp(fz_image_type_name(FZ_IMAGE_WEBP), "webp"));
++#if FZ_ENABLE_WEBP
+ 		check_sample(ctx, webp_rgb, sizeof(webp_rgb), rgb_samples, 0, 0);
+ 		check_sample(ctx, webp_rgba, sizeof(webp_rgba), rgba_samples, 1, 0);
+ 		check_sample(ctx, webp_lossy, sizeof(webp_lossy), lossy_samples, 0, 5);
+@@ -430,6 +465,10 @@ main(void)
+ 		make_exif(exif, 0, 300, 1, 2);
+ 		for (i = 0; i < sizeof(exif); ++i)
+ 			check_exif(ctx, exif, i, 72, 72, -1);
++#else
++		check_disabled(ctx, webp_rgb, sizeof(webp_rgb));
++		check_disabled(ctx, webp_rgba, sizeof(webp_rgba));
++#endif
+ 		CHECK(ctx, !state.unhandled);
+ 	}
+ 	fz_catch(ctx)
+@@ -440,6 +479,6 @@ main(void)
+ 	}
+ 	fz_drop_context(ctx);
+ 	if (!failed)
+-		printf("WebP regression tests passed (%d checks)\n", checks);
++		printf("WebP %s tests passed (%d checks)\n", FZ_ENABLE_WEBP ? "decoder" : "disabled-build", checks);
+ 	return failed;
+ }
