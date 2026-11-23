@@ -30,11 +30,6 @@ case "$tool:$target" in
     ;;
 esac
 
-tag="${TOOLBOX_BUILDER_TAG:-$tag}"
-[[ "$tag" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || {
-  echo "Invalid builder image tag: $tag" >&2
-  exit 2
-}
 : "${GITHUB_REPOSITORY:?Set GITHUB_REPOSITORY to owner/repo for GHCR image pulls}"
 image="ghcr.io/${GITHUB_REPOSITORY,,}/$builder:$tag"
 echo "Using builder image: $image"
@@ -47,7 +42,6 @@ args=(docker run --rm --user builder
   --mount "type=bind,source=$ROOT,target=/workspace"
   --workdir /workspace
   --env "TOOLBOX_JOBS=${TOOLBOX_JOBS:-4}"
-  --env "TOOLBOX_NGINX_VERSION=${TOOLBOX_NGINX_VERSION:-}"
   --env "TOOLBOX_MUPDF_REF=${TOOLBOX_MUPDF_REF:-}")
 
 if [[ "$builder" == entware-aarch64 || "$builder" == entware-armv7 ]]; then
