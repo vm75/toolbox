@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-# Reuse the same pinned Entware toolchain as nginx. No host AArch64/modern glibc shortcuts.
+# Reuse Maestro's Entware AArch64 cross-toolchain, not the host glibc.
 cache="${TOOLBOX_NGINX_CACHE:-$WORKSPACE/nginx-cache}"
-entware="$cache/entware"
+entware="$cache/Entware"
 if ! compgen -G "$entware/staging_dir/toolchain-*/bin/*g++" > /dev/null; then
   bash "$ROOT/tools/nginx/upstream-builder.sh" --toolchain-only --jobs "${TOOLBOX_JOBS:-4}" --workdir "$cache"
 fi
