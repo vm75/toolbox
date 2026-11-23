@@ -32,7 +32,9 @@ rebased or pushed for toolbox to build.
 | btop / entware-aarch64 | upstream `main` (user-verified example `cece4df4db2112f63d94347f6ee2f89ee7224c7b`) | Pinned GCC 15.2 musl, static | Recipe updated; **CI/IPK validation pending** |
 | btop / entware-armv7 | upstream `main` | Pinned GCC 15.2 armv7-musleabi, static | New cross-target; **CI and device test pending** |
 | nginx / entware-aarch64 | upstream stable | Entware GCC 8.4/glibc 2.27 | Existing dedicated Entware build; not retested |
-| Vaultwarden / entware-aarch64 | upstream `main` | Rust + Zig targeting glibc 2.27 | Untested |
+| nginx / entware-armv7 | upstream stable | Entware armv7-3.2 GCC 8.4/glibc 2.27 | New build target, not yet tested |
+| Vaultwarden / entware-aarch64 | upstream `main` | Rust + Zig targeting glibc 2.27 | Rust target install fixed; rerun pending |
+| Vaultwarden / entware-armv7 | upstream `main` | Rust ARMv6 GNU soft-float + Zig/glibc 2.27 | New recipe; CI/device validation pending |
 
 [Failed btop run 45242586997](https://github.com/vm75/toolbox/actions/runs/45242586997):
 the Entware cross-toolchain was built successfully, then GCC **8.4.0** failed
@@ -43,7 +45,12 @@ tarballs are pinned to release `cross-tools/musl-cross@20250929` with
 SHA-256 verification in `images/install-musl-toolchain.sh`. CI with the
 current upstream and the ARMv7 soft-float ABI still needs testing.
 
-ARMv7 is currently offered for btop only. Nginx's Maestro-derived builder
-is AArch64-only, and Rust's armv7-gnueabi target documents a newer minimum
-kernel than Entware armv7sf-k3.2. Do not deploy generated IPKs without
+[Failed Vaultwarden run 45251401473](https://github.com/vm75/toolbox/actions/runs/45251401473):
+upstream `rust-toolchain.toml` selected Rust 1.100, but `rustup target add`
+previously installed the AArch64 target for the runner default Rust toolchain.
+The resulting E0463 "can't find crate for core" is addressed by installing
+the correct target inside the source checkout before compilation. ARMv7 is
+enabled with the ARMv6 soft-float Rust GNU target for the Linux 3.2 kernel,
+not the native ARMv7 Rust target requiring Linux 4.15+.
+Do not deploy generated IPKs without
 architecture/runtime checks, a disposable-device test, and rollback steps.

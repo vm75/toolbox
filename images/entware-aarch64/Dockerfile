@@ -40,7 +40,7 @@ WORKDIR /opt/nginx-entware
 COPY --chown=builder:builder tools/nginx/upstream-builder.sh /tmp/build-toolchain.sh
 
 ARG JOBS=4
-RUN bash /tmp/build-toolchain.sh --toolchain-only --jobs "${JOBS}" --workdir /opt/nginx-entware \
+RUN bash /tmp/build-toolchain.sh --target aarch64-3.10 --toolchain-only --jobs "${JOBS}" --workdir /opt/nginx-entware \
     && rm -f /tmp/build-toolchain.sh
 
 # GCC 8.4 is needed by Entware/nginx but cannot compile modern btop (C++23).
@@ -50,5 +50,13 @@ COPY images/install-musl-toolchain.sh /tmp/install-musl-toolchain.sh
 RUN bash /tmp/install-musl-toolchain.sh aarch64-unknown-linux-musl \
     28a1d26f14f8ddc3aed31f20705fe696777400eb5952d90470a7e6e2dd1175bb \
     && rm /tmp/install-musl-toolchain.sh
+# Fail image publishing early if the C++23 compiler or static target ABI is wrong.
+RUN printf '#include <iostream>\nint main(){std::cout << "ok";}\n' | \
+    /opt/x-tools/aarch64-unknown-linux-musl/bin/aarch64-unknown-linux-musl-g++ \
+      -std=c++23 -static -x c++ - -o /tmp/entware-smoke \
+    && readelf -h /tmp/entware-smoke | grep -Eq 'Machine:.*AArch64([[:space:]]|$)' \
+    && ! readelf -l /tmp/entware-smoke | grep -q 'Requesting program interpreter' \
+    && rm /tmp/entware-smoke
+
 USER builder
 WORKDIR /workspace

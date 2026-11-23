@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Standalone NGINX cross-builder for Asuswrt-Merlin / Entware aarch64-k3.10.
+# Standalone NGINX cross-builder for Entware AArch64 and ARMv7 soft-float.
 # Host: Debian, Ubuntu, or Arch Linux (x86_64). No Maestro repository changes.
-# Uses Entware's glibc 2.27 / Linux 3.10-targeted cross-toolchain and nginx-ssl recipe.
+# Uses Entware's glibc 2.27 nginx-ssl recipe and per-architecture cross-toolchain.
 # Does NOT install anything on the router.
 set -Eeuo pipefail
 unset CDPATH || true
@@ -9,7 +9,8 @@ unset CDPATH || true
 PROGRAM=${0##*/}
 CHANNEL=stable
 VERSION=
-WORKDIR=${NGINX_BUILD_WORKDIR:-${XDG_CACHE_HOME:-$HOME/.cache}/nginx-entware-aarch64}
+WORKDIR=${NGINX_BUILD_WORKDIR:-}
+ENTWARE_TARGET=aarch64-3.10
 OUTPUT_DIR=
 # Keep initial cross-toolchain builds conservative; JOBS/--jobs can override.
 if [[ -z ${JOBS:-} ]]; then
@@ -28,10 +29,11 @@ usage() {
   cat <<EOF
 Usage: $PROGRAM [options]
 
-Cross-compile the latest NGINX release for Asuswrt-Merlin Entware aarch64-k3.10.
+Cross-compile NGINX for Entware AArch64 or ARMv7 soft-float.
 The build is performed on a Debian/Ubuntu/Arch x86_64 host, NOT on the router.
 
 Options:
+  --target aarch64-3.10|armv7-3.2  Entware target (default: aarch64-3.10)
   --channel stable|mainline   Upstream release channel (default: stable)
   --stable                    Shortcut for --channel stable
   --mainline                  Shortcut for --channel mainline
@@ -44,7 +46,7 @@ Options:
   --toolchain-only            Build cross-toolchain and target environment only
   -h, --help                  Show help
 
-Output directory: nginx-X.Y.Z-aarch64-k3.10/
+Output directory: nginx-X.Y.Z-<entware-target>/
   nginx, nginx-ssl_*.ipk, nginx-mod-{brotli,stream,headers-more}_*.ipk,
   ngx_http_brotli_{filter,static}_module.so, ngx_stream_module.so,
   ngx_http_headers_more_filter_module.so, SHA256SUMS, build-info.txt
@@ -82,6 +84,7 @@ trap 'log "Failed at line $LINENO: $BASH_COMMAND"' ERR
 
 while (($#)); do
   case "$1" in
+    --target) [[ $# -ge 2 ]] || die '--target needs a value'; ENTWARE_TARGET=$2; shift 2 ;;
     --channel) [[ $# -ge 2 ]] || die '--channel needs a value'; CHANNEL=$2; shift 2 ;;
     --stable) CHANNEL=stable; shift ;;
     --mainline) CHANNEL=mainline; shift ;;
@@ -97,6 +100,12 @@ while (($#)); do
   esac
 done
 
+case "$ENTWARE_TARGET" in
+  aarch64-3.10) EXPECTED_MACHINE=AArch64; PACKAGE_TARGET=aarch64-k3.10 ;;
+  armv7-3.2) EXPECTED_MACHINE=ARM; PACKAGE_TARGET=armv7sf-k3.2 ;;
+  *) die "Unsupported Entware target: $ENTWARE_TARGET" ;;
+esac
+WORKDIR=${WORKDIR:-${XDG_CACHE_HOME:-$HOME/.cache}/nginx-entware-$ENTWARE_TARGET}
 [[ $CHANNEL == mainline || $CHANNEL == stable ]] || die 'Channel must be mainline or stable'
 RELEASE_SELECTION=$CHANNEL
 [[ -z $VERSION ]] || RELEASE_SELECTION=explicit
@@ -269,7 +278,7 @@ else
     fi
   fi
 fi
-[[ -f $ENTWARE/configs/aarch64-3.10.config ]] || die 'Entware aarch64-3.10 target config not found'
+[[ -f "$ENTWARE/configs/$ENTWARE_TARGET.config" ]] || die "Entware $ENTWARE_TARGET target config not found"
 sync_feeds_conf
 
 log 'Fetching/updating Entware feeds and installing feed symlinks'
@@ -296,9 +305,9 @@ toolchain_ready() {
   return 1
 }
 
-TARGET_CONFIG="$ENTWARE/configs/aarch64-3.10.config"
+TARGET_CONFIG="$ENTWARE/configs/$ENTWARE_TARGET.config"
 BASE_HASH=$(sha256sum "$TARGET_CONFIG" | awk '{print $1}')
-CONFIG_MARKER="$ENTWARE/.nginx-aarch64-target-config-sha256"
+CONFIG_MARKER="$ENTWARE/.nginx-${ENTWARE_TARGET//./-}-target-config-sha256"
 
 # Phase 1: Toolchain bootstrap using Entware's stock validated target configuration.
 if ! toolchain_ready; then
@@ -384,7 +393,7 @@ if [[ ! -f "$ENTWARE/.config" || ! -f $CONFIG_MARKER || $(cat "$CONFIG_MARKER") 
   if [[ -f $ENTWARE/.config && ! -f $CONFIG_MARKER ]]; then
     die 'Existing .config was not created by this script. Use a dedicated --workdir.'
   fi
-  log 'Initializing Entware aarch64-k3.10 config'
+  log "Initializing Entware $ENTWARE_TARGET config"
   cp -f -- "$TARGET_CONFIG" "$ENTWARE/.config"
 fi
 log 'Applying reverse-proxy feature and hardening profile'
@@ -523,10 +532,10 @@ log "Compiling NGINX, Brotli, stream and headers-more with $JOBS jobs"
 # Export NGINX and all three matching dynamic-module packages. We require
 # exactly one version-matched IPK per package; never reuse stale modules.
 shopt -s nullglob
-packages=("$ENTWARE"/bin/targets/aarch64-3.10/*/packages/nginx-ssl_"$VERSION"-*.ipk)
-brotli_packages=("$ENTWARE"/bin/targets/aarch64-3.10/*/packages/nginx-mod-brotli_"$VERSION"-*.ipk)
-stream_packages=("$ENTWARE"/bin/targets/aarch64-3.10/*/packages/nginx-mod-stream_"$VERSION"-*.ipk)
-headers_packages=("$ENTWARE"/bin/targets/aarch64-3.10/*/packages/nginx-mod-headers-more_"$VERSION"-*.ipk)
+packages=("$ENTWARE"/bin/targets/"$ENTWARE_TARGET"/*/packages/nginx-ssl_"$VERSION"-*.ipk)
+brotli_packages=("$ENTWARE"/bin/targets/"$ENTWARE_TARGET"/*/packages/nginx-mod-brotli_"$VERSION"-*.ipk)
+stream_packages=("$ENTWARE"/bin/targets/"$ENTWARE_TARGET"/*/packages/nginx-mod-stream_"$VERSION"-*.ipk)
+headers_packages=("$ENTWARE"/bin/targets/"$ENTWARE_TARGET"/*/packages/nginx-mod-headers-more_"$VERSION"-*.ipk)
 shopt -u nullglob
 ((${#packages[@]} == 1)) || die "Expected one nginx-ssl $VERSION IPK, found ${#packages[@]}"
 ((${#brotli_packages[@]} == 1)) || die "Expected one nginx-mod-brotli $VERSION IPK, found ${#brotli_packages[@]}"
@@ -536,7 +545,7 @@ IPK=${packages[0]}
 BROTLI_IPK=${brotli_packages[0]}
 STREAM_IPK=${stream_packages[0]}
 HEADERS_IPK=${headers_packages[0]}
-if [[ -z $OUTPUT_DIR ]]; then OUTPUT_DIR="$WORKDIR/out/nginx-$VERSION-aarch64-k3.10"; fi
+if [[ -z $OUTPUT_DIR ]]; then OUTPUT_DIR="$WORKDIR/out/nginx-$VERSION-$PACKAGE_TARGET"; fi
 [[ $OUTPUT_DIR == /* ]] || OUTPUT_DIR="$PWD/$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 OUTPUT_DIR=$(cd "$OUTPUT_DIR" && pwd -P)
@@ -580,12 +589,12 @@ for entry in "${module_sources[@]}"; do
   module_path="$STAGE_DIR/$package_dir/root/opt/lib/nginx/modules/$module"
   [[ -f $module_path ]] || die "Missing module from newly built package: $module_path"
   install -m 0755 "$module_path" "$OUTPUT_DIR/$module"
-  readelf -h "$OUTPUT_DIR/$module" | grep -q 'Machine:.*AArch64' || die "$module is not an AArch64 ELF"
+  readelf -h "$OUTPUT_DIR/$module" | grep -Eq "Machine:.*$EXPECTED_MACHINE([[:space:]]|$)" || die "$module is not a $EXPECTED_MACHINE ELF"
 done
 rm -rf -- "$STAGE_DIR"
 STAGE_DIR=
 
-readelf -h "$OUTPUT_DIR/nginx" | grep -q 'Machine:.*AArch64' || die 'Output is not an AArch64 ELF executable'
+readelf -h "$OUTPUT_DIR/nginx" | grep -Eq "Machine:.*$EXPECTED_MACHINE([[:space:]]|$)" || die "Output is not a $EXPECTED_MACHINE ELF executable"
 # Nginx is a network-exposed service: fail if the security build settings did
 # not actually result in a PIE executable with non-executable stack and full
 # RELRO. Shared modules must also have a non-executable stack and full RELRO.
@@ -638,7 +647,7 @@ PY
   {
     printf 'nginx_version=%s\n' "$VERSION"
     printf 'release_selection=%s\n' "$RELEASE_SELECTION"
-    printf 'target=aarch64-k3.10\n'
+    printf 'target=%s\n' "$PACKAGE_TARGET"
     printf 'nginx_source_sha256=%s\n' "$SOURCE_SHA256"
     printf 'profile=maestro-reverse-proxy-hardened-v2-broad-upstream\n'
     printf 'hardening=PIE+SSP_STRONG+FORTIFY2+FULL_RELRO+FORMAT_SECURITY\n'

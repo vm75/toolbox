@@ -15,11 +15,11 @@ fi
 case "$tool:$target" in
   nginx:entware-aarch64|btop:entware-aarch64)
     builder=entware-aarch64
-    tag=v2
+    tag=v3
     ;;
-  btop:entware-armv7)
+  nginx:entware-armv7|btop:entware-armv7)
     builder=entware-armv7
-    tag=v1
+    tag=v2
     ;;
   librera:android-arm64|cryptomator:android-arm64|mupdf:android-arm64)
     builder=android

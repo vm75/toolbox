@@ -6,17 +6,40 @@ mkdir -p "$stage/opt/libexec/vaultwarden" "$stage/opt/bin" \
   "$stage/opt/share/doc/vaultwarden"
 version="$(sed -n '/^version = /s/.*"\([^"]*\)".*/\1/p' "$SRC/Cargo.toml" | head -1)"
 version="${version:-0.0.0}"
-if [[ "$TARGET" == entware-aarch64 ]]; then
-  # Cross-build GNU/Linux for Entware GLIBC 2.27; Alpine MUSL cannot be repackaged.
-  command -v cargo
-  python3 -m ziglang version
+if [[ "$TARGET" == entware-aarch64 || "$TARGET" == entware-armv7 ]]; then
+  # Select a supported glibc 2.27 ABI and the correct Entware /opt interpreter.
+  case "$TARGET" in
+    entware-aarch64)
+      rust_target=aarch64-unknown-linux-gnu
+      interpreter=/opt/lib/ld-linux-aarch64.so.1
+      ;;
+    entware-armv7)
+      # Entware armv7sf-k3.2 has a soft-float ABI and Linux 3.2.
+      # Rust armv7-unknown-linux-gnueabi requires Linux 4.15+, so use
+      # arm-unknown-linux-gnueabi (ARMv6, Linux 3.2+), runnable on ARMv7.
+      rust_target=arm-unknown-linux-gnueabi
+      interpreter=/opt/lib/ld-linux.so.3
+      ;;
+  esac
   command -v cargo-zigbuild
-  rustup target add aarch64-unknown-linux-gnu
-  (cd "$SRC" && \
-    RUSTFLAGS="-C link-arg=-Wl,--dynamic-linker=/opt/lib/ld-linux-aarch64.so.1" \
-    cargo zigbuild --release --target aarch64-unknown-linux-gnu.2.27 \
-    --no-default-features --features sqlite,vendored_openssl)
-  cp "$SRC/target/aarch64-unknown-linux-gnu/release/vaultwarden" \
+  python3 -m ziglang version
+  # Do this INSIDE the upstream checkout: its rust-toolchain.toml selects
+  # Rust 1.100.0; installing rust-std on the runner's default toolchain
+  # resulted in E0463 ("can't find crate for core").
+  (
+    cd "$SRC"
+    echo "Active Vaultwarden Rust toolchain: $(rustup show active-toolchain)"
+    rustup target add "$rust_target"
+    rustlib="$(rustc --print sysroot)/lib/rustlib/$rust_target/lib"
+    compgen -G "$rustlib/libcore-*.rlib" >/dev/null || {
+      echo "Missing $rust_target Rust std in active toolchain: $rustlib" >&2
+      exit 1
+    }
+    RUSTFLAGS="-C link-arg=-Wl,--dynamic-linker=$interpreter" \
+      cargo zigbuild --locked --release --target "$rust_target.2.27" \
+        --no-default-features --features sqlite,vendored_openssl
+  )
+  install -m 0755 "$SRC/target/$rust_target/release/vaultwarden" \
     "$stage/opt/libexec/vaultwarden/vaultwarden"
   bash "$ROOT/scripts/check-router-elf.sh" "$stage/opt/libexec/vaultwarden/vaultwarden"
   # Matching upstream web-vault digest, rather than a floating 'latest' image.
@@ -58,7 +81,7 @@ export DATA_FOLDER="${DATA_FOLDER:-/opt/var/lib/vaultwarden}"
 exec /opt/libexec/vaultwarden/vaultwarden "$@"
 WRAPPER
 chmod 755 "$stage/opt/bin/vaultwarden"
-if [[ "$TARGET" == entware-aarch64 ]]; then
+if [[ "$TARGET" == entware-aarch64 || "$TARGET" == entware-armv7 ]]; then
   bash "$ROOT/scripts/ipk.sh" vaultwarden "$version-1" "$stage" "$OUT" "Vaultwarden password manager server"
 else
   tar -C "$stage" -czf "$OUT/vaultwarden-$version-$TARGET.tgz" opt

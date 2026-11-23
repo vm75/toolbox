@@ -64,4 +64,24 @@ for target in entware-aarch64 entware-armv7; do
     echo "Wrong opkg Architecture for $target" >&2; exit 1;
   }
 done
+# All three tools must advertise the supported Entware ARMv7 *soft-float* target.
+for tool in nginx vaultwarden btop; do
+  TARGETS=
+  source "tools/$tool/tool.conf"
+  [[ " $TARGETS " == *" entware-armv7 "* ]] || {
+    echo "$tool is missing Entware ARMv7 support" >&2; exit 1;
+  }
+done
+grep -Fq -- '--target armv7-3.2' images/entware-armv7/Dockerfile || {
+  echo "ARMv7 builder must use its own Entware buildroot configuration" >&2; exit 1;
+}
+grep -Fq 'arm-unknown-linux-gnueabi' tools/vaultwarden/build.sh || {
+  echo "Vaultwarden ARMv7 must use the Linux 3.2-compatible GNU soft-float Rust target" >&2; exit 1;
+}
+grep -Fq 'rustup target add "$rust_target"' tools/vaultwarden/build.sh || {
+  echo "Vaultwarden must install rust-std after selecting upstream rust-toolchain.toml" >&2; exit 1;
+}
+grep -Fq 'STATIC=true GPU_SUPPORT=false' tools/btop/build.sh || {
+  echo "Entware btop must be statically linked" >&2; exit 1;
+}
 echo "Toolbox structural checks passed"

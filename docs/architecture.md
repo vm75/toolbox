@@ -31,10 +31,13 @@ manual workflow_dispatch (tool + compatible target + optional refs)
   GCC 15.2/musl to generate a fully static C++23 binary, packaged as
   `aarch64-3.10` IPK.
 - **Entware ARMv7**: `entware-armv7` is armv7sf-k3.2, **soft-float**,
-  glibc 2.27. Btop uses a separate GCC 15.2 armv7-musleabi static toolchain
-  and packages `armv7-3.2` IPKs. Only btop currently supports this target;
-  nginx's Entware module profile is AArch64-only, and the current Rust
-  armv7-gnueabi target documents a Linux 4.15+ minimum (not Entware 3.2).
+  glibc 2.27. Nginx uses a separate Entware `armv7-3.2` GCC8 toolchain
+  and its matching native IPK recipes. Btop uses static GCC 15.2
+  `armv7-unknown-linux-musleabi`. Vaultwarden uses `arm-unknown-linux-gnueabi`
+  (ARMv6/soft-float, Linux 3.2+, compatible with ARMv7), Zig and glibc
+  2.27; do **not** use `armv7-unknown-linux-gnueabi` as it requires Linux
+  4.15+. All three produce `armv7-3.2` IPKs.
+  None of the newly enabled ARMv7 builds has passed device testing.
 - **ABI checks**: Verify architecture, ARMv7 soft-float calling convention,
   loader path (for dynamic programs), and glibc <= 2.27. A static musl
   binary must have neither an ELF interpreter nor shared dependencies.
@@ -84,10 +87,10 @@ unchanged source preparation and `build.sh` inside the selected environment:
 
 | Build environment | Tools | Image |
 | --- | --- | --- |
-| Entware aarch64-k3.10 | nginx, btop | `ghcr.io/vm75/toolbox/entware-aarch64:v2` |
-| Entware armv7sf-k3.2 | btop | `ghcr.io/vm75/toolbox/entware-armv7:v1` |
+| Entware aarch64-k3.10 | nginx, btop | `ghcr.io/vm75/toolbox/entware-aarch64:v3` |
+| Entware armv7sf-k3.2 | nginx, btop | `ghcr.io/vm75/toolbox/entware-armv7:v2` |
 | Android SDK/NDK | Librera, Cryptomator, Android MuPDF | `ghcr.io/vm75/toolbox/android:ndk-r27d` |
-| GitHub Ubuntu 24.04 | Everything else, including router Vaultwarden (Rust/Zig) | No custom image |
+| GitHub Ubuntu 24.04 | Everything else, including router Vaultwarden for both Entware targets (Rust/Zig) | No custom image |
 
 The image name describes the *cross-compilation target*, not the container
 architecture. All three builders run as `linux/amd64` on a GitHub-hosted Ubuntu
