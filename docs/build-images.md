@@ -50,10 +50,11 @@ They do **not** rebuild SDKs or toolchains as a fallback. For a quick
 upstream patch compatibility check, set `prepare_only=true`, which uses
 the normal Ubuntu runner and does not pull any builder image.
 
-`builder_image_tag` on the tool workflow optionally overrides the selected
-image tag. The image publishing workflow also has a `tag` override; choose
-matching tags if you publish a test image. By default both use the versioned
-tags in the table above.
+Tool builds always pull the fixed versioned image tags configured in
+`scripts/run.sh`; the build workflow no longer accepts an image-tag override.
+The separate image-publishing workflow still accepts an optional `tag` for
+experimental images, which tool builds will not use until their default tag
+is explicitly updated in `scripts/run.sh`.
 
 ## Updating images
 
