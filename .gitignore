@@ -1,0 +1,12 @@
+/.work/
+/dist/
+/*.apk
+/*.ipk
+*.pkcs12
+*.p12
+*.keystore
+**/google-services.json
+/.gradle/
+/.idea/
+/node_modules/
+.DS_Store
