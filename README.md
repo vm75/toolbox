@@ -7,8 +7,10 @@ cross-builder is maintained directly in `tools/nginx/upstream-builder.sh`.
 
 ## Quick start
 
-Use **Actions → Build toolbox tool → Run workflow**. Pick a tool and one of
-its supported targets. The workflow downloads upstream, applies
+Use **Actions → Build toolbox tool → Run workflow**. Pick a supported
+**tool / target** combination from the single dropdown. GitHub Actions cannot
+filter a second dropdown dynamically, so only valid combinations are listed.
+The workflow downloads upstream, applies
 `tools/<tool>/custom.patch` when present, builds and uploads artifacts.
 **No Actions build or release runs on push, PR, tag, release or a schedule.**
 The `publish_release` checkbox defaults to **false**. Publishing is a separate
@@ -35,7 +37,8 @@ Delete `.work/` between runs; source trees must be fresh. Set
 
 ## Supported targets
 
-Only listed combinations are supported; the build runner rejects all others.
+Only listed combinations are supported; the Actions dropdown offers exactly
+these combinations and the build runner rejects all others.
 
 | Tool | Target(s) | Source / special handling |
 | --- | --- | --- |
