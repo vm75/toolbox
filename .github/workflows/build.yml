@@ -1,21 +1,36 @@
 name: Build toolbox tool
-run-name: "Build ${{ inputs.tool }} / ${{ inputs.target }}${{ inputs.prepare_only && ' (prepare only)' || '' }}"
+run-name: "Build ${{ inputs.build }}${{ inputs.prepare_only && ' (prepare only)' || '' }}"
 # Deliberately no push, pull_request, release, tag or schedule triggers.
 on:
   workflow_dispatch:
     inputs:
-      tool:
-        description: Tool to build
+      build:
+        description: Select a supported tool / target combination
         required: true
-        default: btop
+        default: btop / entware-aarch64
         type: choice
-        options: [btop, busybox, cryptomator, 'John the Ripper', librera, mupdf, nginx, vaultwarden, wireguard, wg-util]
-      target:
-        description: Select an allowed target for that tool (validated by tool.conf)
-        required: true
-        default: entware-aarch64
-        type: choice
-        options: [entware-aarch64, entware-armv7, android-arm64, windows-amd64, linux-amd64, linux-arm64, linux-armv7]
+        options:
+          - btop / entware-aarch64
+          - btop / entware-armv7
+          - busybox / windows-amd64
+          - cryptomator / android-arm64
+          - John the Ripper / linux-amd64
+          - librera / android-arm64
+          - mupdf / linux-amd64
+          - mupdf / android-arm64
+          - nginx / entware-aarch64
+          - nginx / entware-armv7
+          - vaultwarden / entware-aarch64
+          - vaultwarden / entware-armv7
+          - vaultwarden / linux-amd64
+          - vaultwarden / linux-arm64
+          - vaultwarden / linux-armv7
+          - wireguard / linux-amd64
+          - wireguard / linux-arm64
+          - wireguard / linux-armv7
+          - wg-util / linux-amd64
+          - wg-util / linux-arm64
+          - wg-util / linux-armv7
       upstream_ref:
         description: Optional upstream branch, tag or commit (blank uses tool default)
         required: false
@@ -48,32 +63,50 @@ permissions:
   contents: read
   packages: read
 
-# The dropdown is human-readable; recipes, artifact names and tags use tool IDs.
-env:
-  TOOLBOX_TOOL: ${{ inputs.tool == 'John the Ripper' && 'john' || inputs.tool }}
-
 jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
+    outputs:
+      tool: ${{ steps.select.outputs.tool }}
+      target: ${{ steps.select.outputs.target }}
     # Keep environment-scoped Android signing secrets and approval rules,
     # but do not record compilation jobs as deployments.
     environment:
-      name: ${{ (inputs.tool == 'librera' || inputs.tool == 'cryptomator') && !inputs.prepare_only && 'android-signing' || 'build' }}
+      name: ${{ (startsWith(inputs.build, 'librera / ') || startsWith(inputs.build, 'cryptomator / ')) && !inputs.prepare_only && 'android-signing' || 'build' }}
       deployment: false
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
+      - name: Resolve selected tool and target
+        id: select
+        shell: bash
+        env:
+          REQUESTED_BUILD: ${{ inputs.build }}
+        run: |
+          set -euo pipefail
+          [[ "$REQUESTED_BUILD" == *' / '* ]] || { echo "Invalid tool/target selection" >&2; exit 2; }
+          tool="${REQUESTED_BUILD%% / *}"
+          target="${REQUESTED_BUILD#* / }"
+          [[ "$tool" == 'John the Ripper' ]] && tool=john
+          [[ "$tool" =~ ^[a-z0-9-]+$ && "$target" =~ ^[a-z0-9-]+$ ]] || exit 2
+          [[ -r "tools/$tool/tool.conf" ]] || { echo "Unknown tool: $tool" >&2; exit 2; }
+          TARGETS=
+          source "tools/$tool/tool.conf"
+          [[ " $TARGETS " == *" $target "* ]] || { echo "Unsupported target $target for $tool" >&2; exit 2; }
+          echo "tool=$tool" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
       - name: Verify recipe and trigger structure
         run: bash scripts/test.sh
 
       # Native builds reuse GitHub's Ubuntu image; install only what that tool needs.
       - name: Install native build dependencies
-        if: ${{ !inputs.prepare_only && (inputs.tool == 'busybox' || env.TOOLBOX_TOOL == 'john' || (inputs.tool == 'mupdf' && inputs.target == 'linux-amd64')) }}
+        if: ${{ !inputs.prepare_only && (steps.select.outputs.tool == 'busybox' || steps.select.outputs.tool == 'john' || (steps.select.outputs.tool == 'mupdf' && steps.select.outputs.target == 'linux-amd64')) }}
         env:
-          SELECTED_TOOL: ${{ env.TOOLBOX_TOOL }}
+          SELECTED_TOOL: ${{ steps.select.outputs.tool }}
         shell: bash
         run: |
           set -euo pipefail
@@ -93,13 +126,13 @@ jobs:
           sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
       - uses: actions/setup-go@v5
-        if: ${{ !inputs.prepare_only && (inputs.tool == 'wireguard' || inputs.tool == 'wg-util') }}
+        if: ${{ !inputs.prepare_only && (steps.select.outputs.tool == 'wireguard' || steps.select.outputs.tool == 'wg-util') }}
         with:
           go-version: stable
           cache: false
 
       - name: Set up Vaultwarden Rust and Zig tools
-        if: ${{ !inputs.prepare_only && inputs.tool == 'vaultwarden' && (inputs.target == 'entware-aarch64' || inputs.target == 'entware-armv7') }}
+        if: ${{ !inputs.prepare_only && steps.select.outputs.tool == 'vaultwarden' && (steps.select.outputs.target == 'entware-aarch64' || steps.select.outputs.target == 'entware-armv7') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -112,10 +145,10 @@ jobs:
 
       # Keys are created on the runner only. The Android image contains no secrets.
       - name: Prepare Android signing key
-        if: ${{ !inputs.prepare_only && (inputs.tool == 'cryptomator' || inputs.tool == 'librera') }}
+        if: ${{ !inputs.prepare_only && (steps.select.outputs.tool == 'cryptomator' || steps.select.outputs.tool == 'librera') }}
         shell: bash
         env:
-          SELECTED_TOOL: ${{ env.TOOLBOX_TOOL }}
+          SELECTED_TOOL: ${{ steps.select.outputs.tool }}
           LIBRERA_KEYSTORE_BASE64: ${{ secrets.LIBRERA_KEYSTORE_BASE64 }}
           LIBRERA_STORE_PASSWORD: ${{ secrets.LIBRERA_STORE_PASSWORD }}
           LIBRERA_KEY_ALIAS: ${{ secrets.LIBRERA_KEY_ALIAS }}
@@ -158,7 +191,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Log in to GHCR for reusable builders
-        if: ${{ !inputs.prepare_only && (inputs.tool == 'nginx' || inputs.tool == 'btop' || inputs.tool == 'librera' || inputs.tool == 'cryptomator' || (inputs.tool == 'mupdf' && inputs.target == 'android-arm64')) }}
+        if: ${{ !inputs.prepare_only && (steps.select.outputs.tool == 'nginx' || steps.select.outputs.tool == 'btop' || steps.select.outputs.tool == 'librera' || steps.select.outputs.tool == 'cryptomator' || (steps.select.outputs.tool == 'mupdf' && steps.select.outputs.target == 'android-arm64')) }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -173,15 +206,15 @@ jobs:
           TOOLBOX_JOBS: '4'
           TOOLBOX_PREPARE_ONLY: ${{ inputs.prepare_only && '1' || '0' }}
           TOOLBOX_BUILDER_TAG: ${{ inputs.builder_image_tag }}
-          SELECTED_TOOL: ${{ env.TOOLBOX_TOOL }}
-          SELECTED_TARGET: ${{ inputs.target }}
+          SELECTED_TOOL: ${{ steps.select.outputs.tool }}
+          SELECTED_TARGET: ${{ steps.select.outputs.target }}
           SELECTED_REF: ${{ inputs.upstream_ref }}
         run: bash scripts/run.sh "$SELECTED_TOOL" "$SELECTED_TARGET" "$SELECTED_REF"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: toolbox-${{ env.TOOLBOX_TOOL }}-${{ inputs.target }}-${{ github.run_id }}
+          name: toolbox-${{ steps.select.outputs.tool }}-${{ steps.select.outputs.target }}-${{ github.run_id }}
           path: dist/
           if-no-files-found: error
           retention-days: 30
@@ -196,7 +229,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: toolbox-${{ env.TOOLBOX_TOOL }}-${{ inputs.target }}-${{ github.run_id }}
+          name: toolbox-${{ needs.build.outputs.tool }}-${{ needs.build.outputs.target }}-${{ github.run_id }}
           path: dist/
       - name: Publish this manually selected build
         shell: bash
@@ -204,7 +237,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="toolbox-${{ env.TOOLBOX_TOOL }}-${{ inputs.target }}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          tag="toolbox-${{ needs.build.outputs.tool }}-${{ needs.build.outputs.target }}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
           tar -C dist -czf "$RUNNER_TEMP/$tag.tar.gz" .
           mapfile -d '' -t ipks < <(find dist -type f -name '*.ipk' -print0)
           gh release create "$tag" "$RUNNER_TEMP/$tag.tar.gz" "${ipks[@]}" \
