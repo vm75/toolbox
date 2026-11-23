@@ -1,0 +1,9 @@
+.git
+.work
+dist
+.gradle
+**/.gradle
+*.apk
+*.ipk
+*.p12
+*.keystore

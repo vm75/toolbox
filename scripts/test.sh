@@ -29,4 +29,12 @@ for dir in tools/*; do
     echo "Legacy multi-patch directory exists: $dir/patches" >&2; exit 1;
   }
 done
+# The only custom environments are the manually published Entware and Android images.
+[[ -f images/entware-aarch64/Dockerfile && -f images/android/Dockerfile ]] || {
+  echo "Missing reusable builder Dockerfile" >&2; exit 1;
+}
+[[ -f scripts/run.sh ]] || { echo "Missing builder selection runner" >&2; exit 1; }
+[[ ! -e .github/workflows/toolchain-image.yml && ! -e tools/nginx/Dockerfile ]] || {
+  echo "Legacy single-purpose image workflow or Dockerfile still present" >&2; exit 1;
+}
 echo "Toolbox structural checks passed"

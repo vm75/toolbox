@@ -56,7 +56,14 @@ keystore in the runner's temporary directory with restrictive permissions.
 
 ## 3. Run a manual build
 
-In **Actions → Build toolbox tool → Run workflow**, choose:
+First use **Actions → Build toolbox images → Run workflow → android** to
+publish the Android builder (one-time, or manually whenever its Dockerfile
+changes). The image contains the Android SDK, NDK and JDK but **no keys**.
+Each APK build decodes its keystore on the GitHub runner and bind-mounts that
+file read-only into the container. The key is never committed or baked into
+a GHCR image.
+
+Then in **Actions → Build toolbox tool → Run workflow**, choose:
 
 - `tool=librera`, `target=android-arm64`, or
 - `tool=cryptomator`, `target=android-arm64`.
@@ -88,6 +95,7 @@ Enable repository **Actions** execution in Settings. A separate
 `publish_release` checkbox controls optional Releases; keep it off by default.
 GitHub `GITHUB_TOKEN` is used to publish when explicitly enabled, not a
 personal access token. Container-image publishing uses the *separate*
-manual `Build Entware toolchain image` workflow with `packages: write`.
+manual `Build toolbox images` workflow with `packages: write`.
+Tool builds read existing GHCR packages with `packages: read`.
 
 These workflows do not contain push, pull request, tag or scheduled triggers.

@@ -7,7 +7,9 @@ registry, generalized CI framework, or all-platform build farm.
 
 ## Repository map
 
+- `scripts/run.sh`: select Entware/Android image or standard Ubuntu runner
 - `scripts/build.sh`: one upstream fetch, dependency preparation and patch gate
+- `images/`: one Entware and one Android builder image, published manually
 - `scripts/ipk.sh`, `scripts/check-router-elf.sh`: router packaging and ELF checks
 - `tools/<tool>/tool.conf`: trusted source URL, ref, allowed target list, dependencies
 - `tools/<tool>/build.sh`: only commands needed for that particular tool
@@ -26,8 +28,13 @@ registry, generalized CI framework, or all-platform build farm.
    must remain a manual opt-in and run only after a successful build.
 7. Never commit keystores, private keys, Google service credentials or tokens.
 8. Preserve attribution, third-party licenses, sources and reproducible inputs.
-9. Prefer reuse of Maestro nginx's tested Entware build system over a second one.
-10. Avoid additional build DSLs, package managers or dependencies without need.
+9. Reuse Maestro nginx's tested Entware build system instead of creating another.
+10. Keep exactly two custom images (Entware and Android) unless a measured need
+    justifies a third one; other tools use a GitHub-hosted Ubuntu runner.
+11. The image workflow must remain manual-only; never bake keys or tool-specific
+    source into a builder image.
+12. Avoid additional build DSLs, package managers, self-hosted runners or
+    caching frameworks without demonstrated need.
 
 ## Review checklist
 

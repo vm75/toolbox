@@ -3,6 +3,8 @@
 ```text
 manual workflow_dispatch (tool + compatible target + optional refs)
        |
+  scripts/run.sh -> choose existing GHCR builder or GitHub Ubuntu runner
+       |
   scripts/build.sh
        |
   tool.conf -> prepare dependencies recursively -> fresh upstream fetch
@@ -67,3 +69,30 @@ Deployment, init configuration and router runtime smoke testing are manual.
 A successful source preparation is **not** evidence of successful native
 compilation or runtime compatibility. Keep the latest verified upstream commit
 pair for Librera/MuPDF when debugging new upstream changes.
+
+## Build environments (GitHub only)
+
+`scripts/run.sh` selects a builder for the requested tool/target. It runs the
+unchanged source preparation and `build.sh` inside the selected environment:
+
+| Build environment | Tools | Image |
+| --- | --- | --- |
+| Entware aarch64-k3.10 | nginx, btop | `ghcr.io/vm75/toolbox/entware-aarch64:v1` |
+| Android SDK/NDK | Librera, Cryptomator, Android MuPDF | `ghcr.io/vm75/toolbox/android:ndk-r27d` |
+| GitHub Ubuntu 24.04 | Everything else, including router Vaultwarden (Rust/Zig) | No custom image |
+
+The image name describes the *cross-compilation target*, not the container
+architecture. Both builders run as `linux/amd64` on a GitHub-hosted Ubuntu
+runner and produce the requested target output.
+
+The `Build toolbox images` workflow builds **only the selected image** and
+publishes it to GHCR on manual dispatch. `Build toolbox tool` pulls that image,
+bind-mounts the checkout, and runs `scripts/build.sh`. It never implicitly
+builds or updates a missing image. Android signing secrets are mounted read-only
+at build time, never included in the image. `prepare_only=true` skips images,
+SDK installation and signing entirely.
+
+No self-hosted runner, separate external cache service, automatic image
+publication, or all-target build matrix is used. The image itself contains
+the expensive fixed toolchain; upstream tool sources remain ephemeral.
+See [build-images.md](build-images.md) for manual setup and versioning.

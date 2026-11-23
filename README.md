@@ -15,6 +15,12 @@ its supported targets. The workflow downloads upstream, applies
 The `publish_release` checkbox defaults to **false**. Publishing is a separate
 step inside the *manually dispatched* build after success.
 
+Before the first full nginx, btop or Android build, manually publish its builder
+image using **Actions → Build toolbox images → Run workflow**. Select either
+`entware-aarch64` or `android`. Both are stored in GHCR and reused across
+tool builds; no image is built automatically. See [builder images](docs/build-images.md).
+A `prepare_only=true` patch check works without any builder image.
+
 To run locally (requires the target's compiler/SDK):
 
 ```sh
@@ -71,6 +77,7 @@ to require code work.
 ## Documentation
 
 - [Architecture and dependency flow](docs/architecture.md)
+- [GHCR builder images and manual setup](docs/build-images.md)
 - [Maintaining one patch per tool](docs/patches.md)
 - [Android signing keys and GitHub setup](docs/android-signing.md)
 - [Licenses and upstream notices](docs/licenses.md)
@@ -79,8 +86,12 @@ to require code work.
 ## Security and release policy
 
 GitHub Actions is manual-only. Source pins are recorded in `dist/build-info.txt`,
-along with patch hashes, checksums and any packaged IPKs/APKs. The Entware
-toolchain image has a **separate manual-only** workflow and is optional: a
-router nginx/btop build can bootstrap a fresh toolchain instead. The repo
-contains no private signing keystore, user credentials or Google API keys.
-Store APK keys as encrypted Actions secrets and back them up offline.
+along with patch hashes, checksums and any packaged IPKs/APKs. A second
+manual-only workflow publishes **two versioned builder images**:
+`entware-aarch64:v1` and `android:ndk-r27d`. Nginx/btop and
+Librera/Cryptomator use these images without repeating the SDK/toolchain
+installation. Vaultwarden, Go tools and native Linux/Windows builds remain on
+GitHub-hosted Ubuntu; no third builder image or external cache is needed.
+Missing builder images fail clearly: run the manual image workflow first.
+The repo contains no private signing keystore, user credentials or Google API
+keys. Store APK keys as encrypted Actions secrets and back them up offline.

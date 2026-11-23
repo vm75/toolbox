@@ -1,5 +1,7 @@
 FROM ubuntu:24.04
 
+LABEL org.opencontainers.image.source="https://github.com/vm75/toolbox"
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install host compilation packages required by the Entware buildroot

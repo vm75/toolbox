@@ -37,14 +37,15 @@ on:
         required: true
         default: false
         type: boolean
-      toolchain_tag:
-        description: Prebuilt Entware toolchain image tag
+      builder_image_tag:
+        description: Optional GHCR builder image tag override (default is versioned per builder)
         required: false
-        default: latest
+        default: ''
         type: string
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   build:
@@ -55,44 +56,59 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install host dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential git curl wget file binutils ca-certificates cmake ninja-build \
-            pkg-config autoconf automake libtool yasm libssl-dev liblzma-dev \
-            libzstd-dev libxxhash-dev python3 python3-pip perl
+      - name: Verify recipe and trigger structure
+        run: bash scripts/test.sh
 
-      - name: Install Windows cross compiler
-        if: ${{ inputs.tool == 'busybox' }}
-        run: sudo apt-get install -y gcc-mingw-w64-x86-64
+      # Native builds reuse GitHub's Ubuntu image; install only what that tool needs.
+      - name: Install native build dependencies
+        if: ${{ !inputs.prepare_only && (inputs.tool == 'busybox' || inputs.tool == 'rsync' || inputs.tool == 'john' || (inputs.tool == 'mupdf' && inputs.target == 'linux-amd64')) }}
+        env:
+          SELECTED_TOOL: ${{ inputs.tool }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$SELECTED_TOOL" in
+            busybox)
+              packages=(gcc-mingw-w64-x86-64 make)
+              ;;
+            rsync)
+              packages=(build-essential autoconf automake libtool pkg-config
+                        libssl-dev libxxhash-dev libzstd-dev liblz4-dev)
+              ;;
+            john)
+              packages=(build-essential autoconf automake pkg-config libssl-dev
+                        zlib1g-dev libbz2-dev libgmp-dev)
+              ;;
+            mupdf)
+              packages=(build-essential pkg-config libssl-dev zlib1g-dev)
+              ;;
+          esac
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
       - uses: actions/setup-go@v5
-        if: ${{ inputs.tool == 'wireguard' || inputs.tool == 'wg-util' }}
+        if: ${{ !inputs.prepare_only && (inputs.tool == 'wireguard' || inputs.tool == 'wg-util') }}
         with:
           go-version: stable
           cache: false
 
-      - uses: actions/setup-java@v4
-        if: ${{ inputs.tool == 'cryptomator' || inputs.tool == 'librera' }}
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - uses: android-actions/setup-android@v3
-        if: ${{ inputs.tool == 'cryptomator' || inputs.tool == 'librera' }}
-
-      - name: Install Android SDK/NDK
-        if: ${{ inputs.tool == 'cryptomator' || inputs.tool == 'librera' }}
+      - name: Set up router Vaultwarden GNU cross-compiler
+        if: ${{ !inputs.prepare_only && inputs.tool == 'vaultwarden' && inputs.target == 'router-aarch64' }}
+        shell: bash
         run: |
-          sdkmanager "platforms;android-37" "ndk;27.2.12479018" "cmake;3.22.1"
-          echo "LIBRERA_NDK_DIR=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          set -euo pipefail
+          rustup target add aarch64-unknown-linux-gnu
+          python3 -m pip install --user --break-system-packages ziglang
+          cargo install cargo-zigbuild --locked
+          python3 -m ziglang version
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Prepare Android signing
-        if: ${{ inputs.tool == 'cryptomator' || inputs.tool == 'librera' }}
+      # Keys are created on the runner only. The Android image contains no secrets.
+      - name: Prepare Android signing key
+        if: ${{ !inputs.prepare_only && (inputs.tool == 'cryptomator' || inputs.tool == 'librera') }}
         shell: bash
         env:
+          SELECTED_TOOL: ${{ inputs.tool }}
           LIBRERA_KEYSTORE_BASE64: ${{ secrets.LIBRERA_KEYSTORE_BASE64 }}
           LIBRERA_STORE_PASSWORD: ${{ secrets.LIBRERA_STORE_PASSWORD }}
           LIBRERA_KEY_ALIAS: ${{ secrets.LIBRERA_KEY_ALIAS }}
@@ -103,7 +119,7 @@ jobs:
           CRYPTOMATOR_KEY_PASSWORD: ${{ secrets.CRYPTOMATOR_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          case "${{ inputs.tool }}" in
+          case "$SELECTED_TOOL" in
             librera)
               encoded="$LIBRERA_KEYSTORE_BASE64"
               store_pass="$LIBRERA_STORE_PASSWORD"
@@ -118,32 +134,29 @@ jobs:
               ;;
           esac
           [[ -n "$encoded" && -n "$store_pass" && -n "$alias" && -n "$key_pass" ]] || {
-            echo "::error::Missing Android signing secrets (see docs/android-signing.md)"
+            echo "::error::Missing Android signing secrets; see docs/android-signing.md" >&2
             exit 1
           }
           umask 077
           printf '%s' "$encoded" | base64 --decode > "$RUNNER_TEMP/release.p12"
-          keytool -list -storetype PKCS12 -keystore "$RUNNER_TEMP/release.p12" -storepass "$store_pass" >/dev/null
+          [[ -s "$RUNNER_TEMP/release.p12" ]] || exit 1
           {
             echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.p12"
             echo "RELEASE_STORE_PASSWORD=$store_pass"
             echo "RELEASE_KEY_ALIAS=$alias"
             echo "RELEASE_KEY_PASSWORD=$key_pass"
-            echo "ORG_GRADLE_PROJECT_RELEASE_STORE_FILE=$RUNNER_TEMP/release.p12"
             echo "ORG_GRADLE_PROJECT_RELEASE_STORE_PASSWORD=$store_pass"
             echo "ORG_GRADLE_PROJECT_RELEASE_KEY_ALIAS=$alias"
             echo "ORG_GRADLE_PROJECT_RELEASE_KEY_PASSWORD=$key_pass"
           } >> "$GITHUB_ENV"
 
-      - name: Set up router Vaultwarden GLIBC 2.27 cross builder
-        if: ${{ inputs.tool == 'vaultwarden' && inputs.target == 'router-aarch64' }}
-        run: |
-          rustup target add aarch64-unknown-linux-gnu
-          python3 -m pip install --user --break-system-packages ziglang
-          cargo install cargo-zigbuild --locked
-          # The PyPI ziglang package is discovered by cargo-zigbuild via Python.
-          python3 -m ziglang version
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Log in to GHCR for reusable builders
+        if: ${{ !inputs.prepare_only && (inputs.tool == 'nginx' || inputs.tool == 'btop' || inputs.tool == 'librera' || inputs.tool == 'cryptomator' || (inputs.tool == 'mupdf' && inputs.target == 'android-arm64')) }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build from upstream and optional patch
         shell: bash
@@ -152,25 +165,11 @@ jobs:
           TOOLBOX_NGINX_VERSION: ${{ inputs.nginx_version }}
           TOOLBOX_JOBS: '4'
           TOOLBOX_PREPARE_ONLY: ${{ inputs.prepare_only && '1' || '0' }}
+          TOOLBOX_BUILDER_TAG: ${{ inputs.builder_image_tag }}
           SELECTED_TOOL: ${{ inputs.tool }}
           SELECTED_TARGET: ${{ inputs.target }}
           SELECTED_REF: ${{ inputs.upstream_ref }}
-          SELECTED_TOOLCHAIN: ${{ inputs.toolchain_tag }}
-        run: |
-          set -euo pipefail
-          if [[ "$TOOLBOX_PREPARE_ONLY" != 1 && "$SELECTED_TARGET" == router-aarch64 && ( "$SELECTED_TOOL" == nginx || "$SELECTED_TOOL" == btop ) ]]; then
-            image="ghcr.io/${GITHUB_REPOSITORY,,}/entware-aarch64-builder:$SELECTED_TOOLCHAIN"
-            if docker pull "$image"; then
-              docker run --rm --user builder -v "$GITHUB_WORKSPACE:/workspace" \
-                -w /workspace -e TOOLBOX_JOBS=4 \
-                -e TOOLBOX_NGINX_CACHE=/opt/nginx-entware \
-                -e TOOLBOX_NGINX_VERSION="$TOOLBOX_NGINX_VERSION" \
-                "$image" bash scripts/build.sh "$SELECTED_TOOL" "$SELECTED_TARGET" "$SELECTED_REF"
-              exit 0
-            fi
-            echo "::notice::No prebuilt Entware image; falling back to host bootstrap"
-          fi
-          bash scripts/build.sh "$SELECTED_TOOL" "$SELECTED_TARGET" "$SELECTED_REF"
+        run: bash scripts/run.sh "$SELECTED_TOOL" "$SELECTED_TARGET" "$SELECTED_REF"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
