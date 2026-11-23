@@ -32,7 +32,7 @@ on:
           - wg-util / linux-arm64
           - wg-util / linux-armv7
       upstream_ref:
-        description: Optional upstream ref; nginx accepts X.Y.Z (blank uses latest stable)
+        description: Optional branch, tag, or commit; nginx release X.Y.Z (blank uses default/latest stable)
         required: false
         type: string
       mupdf_ref:
