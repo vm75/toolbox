@@ -1,0 +1,198 @@
+name: Build toolbox tool
+# Deliberately no push, pull_request, release, tag or schedule triggers.
+on:
+  workflow_dispatch:
+    inputs:
+      tool:
+        description: Tool to build
+        required: true
+        default: btop
+        type: choice
+        options: [btop, busybox, cryptomator, john, librera, mupdf, nginx, rsync, vaultwarden, wireguard, wg-util]
+      target:
+        description: Select an allowed target for that tool (validated by tool.conf)
+        required: true
+        default: router-aarch64
+        type: choice
+        options: [router-aarch64, android-arm64, windows-amd64, linux-amd64, linux-arm64, linux-armv7]
+      upstream_ref:
+        description: Optional upstream branch, tag or commit (blank uses tool default)
+        required: false
+        type: string
+      mupdf_ref:
+        description: Optional MuPDF revision when building Librera
+        required: false
+        type: string
+      nginx_version:
+        description: Optional exact nginx release (blank uses latest stable)
+        required: false
+        type: string
+      publish_release:
+        description: Publish GitHub Release after build succeeds (manual opt-in)
+        required: true
+        default: false
+        type: boolean
+      toolchain_tag:
+        description: Prebuilt Entware toolchain image tag
+        required: false
+        default: latest
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git curl wget file binutils ca-certificates cmake ninja-build \
+            pkg-config autoconf automake libtool yasm libssl-dev liblzma-dev \
+            libzstd-dev libxxhash-dev python3 python3-pip perl
+
+      - name: Install Windows cross compiler
+        if: ${{ inputs.tool == 'busybox' }}
+        run: sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - uses: actions/setup-go@v5
+        if: ${{ inputs.tool == 'wireguard' || inputs.tool == 'wg-util' }}
+        with:
+          go-version: stable
+          cache: false
+
+      - uses: actions/setup-java@v4
+        if: ${{ inputs.tool == 'cryptomator' || inputs.tool == 'librera' }}
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+        if: ${{ inputs.tool == 'cryptomator' || inputs.tool == 'librera' }}
+
+      - name: Install Android SDK/NDK
+        if: ${{ inputs.tool == 'cryptomator' || inputs.tool == 'librera' }}
+        run: |
+          sdkmanager "platforms;android-37" "ndk;27.2.12479018" "cmake;3.22.1"
+          echo "LIBRERA_NDK_DIR=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Prepare Android signing
+        if: ${{ inputs.tool == 'cryptomator' || inputs.tool == 'librera' }}
+        shell: bash
+        env:
+          LIBRERA_KEYSTORE_BASE64: ${{ secrets.LIBRERA_KEYSTORE_BASE64 }}
+          LIBRERA_STORE_PASSWORD: ${{ secrets.LIBRERA_STORE_PASSWORD }}
+          LIBRERA_KEY_ALIAS: ${{ secrets.LIBRERA_KEY_ALIAS }}
+          LIBRERA_KEY_PASSWORD: ${{ secrets.LIBRERA_KEY_PASSWORD }}
+          CRYPTOMATOR_KEYSTORE_BASE64: ${{ secrets.CRYPTOMATOR_KEYSTORE_BASE64 }}
+          CRYPTOMATOR_STORE_PASSWORD: ${{ secrets.CRYPTOMATOR_STORE_PASSWORD }}
+          CRYPTOMATOR_KEY_ALIAS: ${{ secrets.CRYPTOMATOR_KEY_ALIAS }}
+          CRYPTOMATOR_KEY_PASSWORD: ${{ secrets.CRYPTOMATOR_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          case "${{ inputs.tool }}" in
+            librera)
+              encoded="$LIBRERA_KEYSTORE_BASE64"
+              store_pass="$LIBRERA_STORE_PASSWORD"
+              alias="$LIBRERA_KEY_ALIAS"
+              key_pass="$LIBRERA_KEY_PASSWORD"
+              ;;
+            cryptomator)
+              encoded="$CRYPTOMATOR_KEYSTORE_BASE64"
+              store_pass="$CRYPTOMATOR_STORE_PASSWORD"
+              alias="$CRYPTOMATOR_KEY_ALIAS"
+              key_pass="$CRYPTOMATOR_KEY_PASSWORD"
+              ;;
+          esac
+          [[ -n "$encoded" && -n "$store_pass" && -n "$alias" && -n "$key_pass" ]] || {
+            echo "::error::Missing Android signing secrets (see docs/android-signing.md)"
+            exit 1
+          }
+          umask 077
+          printf '%s' "$encoded" | base64 --decode > "$RUNNER_TEMP/release.p12"
+          keytool -list -storetype PKCS12 -keystore "$RUNNER_TEMP/release.p12" -storepass "$store_pass" >/dev/null
+          {
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.p12"
+            echo "RELEASE_STORE_PASSWORD=$store_pass"
+            echo "RELEASE_KEY_ALIAS=$alias"
+            echo "RELEASE_KEY_PASSWORD=$key_pass"
+            echo "ORG_GRADLE_PROJECT_RELEASE_STORE_FILE=$RUNNER_TEMP/release.p12"
+            echo "ORG_GRADLE_PROJECT_RELEASE_STORE_PASSWORD=$store_pass"
+            echo "ORG_GRADLE_PROJECT_RELEASE_KEY_ALIAS=$alias"
+            echo "ORG_GRADLE_PROJECT_RELEASE_KEY_PASSWORD=$key_pass"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up router Vaultwarden GLIBC 2.27 cross builder
+        if: ${{ inputs.tool == 'vaultwarden' && inputs.target == 'router-aarch64' }}
+        run: |
+          rustup target add aarch64-unknown-linux-gnu
+          python3 -m pip install --user --break-system-packages ziglang
+          cargo install cargo-zigbuild --locked
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build from upstream and optional patch
+        shell: bash
+        env:
+          TOOLBOX_MUPDF_REF: ${{ inputs.mupdf_ref }}
+          TOOLBOX_NGINX_VERSION: ${{ inputs.nginx_version }}
+          TOOLBOX_JOBS: '4'
+          SELECTED_TOOL: ${{ inputs.tool }}
+          SELECTED_TARGET: ${{ inputs.target }}
+          SELECTED_REF: ${{ inputs.upstream_ref }}
+          SELECTED_TOOLCHAIN: ${{ inputs.toolchain_tag }}
+        run: |
+          set -euo pipefail
+          if [[ "$SELECTED_TARGET" == router-aarch64 && ( "$SELECTED_TOOL" == nginx || "$SELECTED_TOOL" == btop ) ]]; then
+            image="ghcr.io/${GITHUB_REPOSITORY,,}/entware-aarch64-builder:$SELECTED_TOOLCHAIN"
+            if docker pull "$image"; then
+              docker run --rm --user builder -v "$GITHUB_WORKSPACE:/workspace" \
+                -w /workspace -e TOOLBOX_JOBS=4 \
+                -e TOOLBOX_NGINX_CACHE=/opt/nginx-entware \
+                -e TOOLBOX_NGINX_VERSION="$TOOLBOX_NGINX_VERSION" \
+                "$image" bash scripts/build.sh "$SELECTED_TOOL" "$SELECTED_TARGET" "$SELECTED_REF"
+              exit 0
+            fi
+            echo "::notice::No prebuilt Entware image; falling back to host bootstrap"
+          fi
+          bash scripts/build.sh "$SELECTED_TOOL" "$SELECTED_TARGET" "$SELECTED_REF"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolbox-${{ inputs.tool }}-${{ inputs.target }}-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    if: ${{ inputs.publish_release }}
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: toolbox-${{ inputs.tool }}-${{ inputs.target }}-${{ github.run_id }}
+          path: dist/
+      - name: Publish this manually selected build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="toolbox-${{ inputs.tool }}-${{ inputs.target }}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          tar -C dist -czf "$RUNNER_TEMP/$tag.tar.gz" .
+          mapfile -d '' -t ipks < <(find dist -type f -name '*.ipk' -print0)
+          gh release create "$tag" "$RUNNER_TEMP/$tag.tar.gz" "${ipks[@]}" \
+            --title "$tag" --notes "Manually requested upstream build. See build-info.txt for source commits and patch checksums. Validate on target before deploying." \
+            --latest=false --target "$GITHUB_SHA"
