@@ -27,6 +27,8 @@ registry, generalized CI framework, or all-platform build farm.
 6. No automatic build, tag, push, cron, PR or release triggers. Release publishing
    must remain a manual opt-in and run only after a successful build.
 7. Never commit keystores, private keys, Google service credentials or tokens.
+   Secrets for signed APK builds belong in the GitHub `android-signing`
+   environment, never in the repository or builder images.
 8. Preserve attribution, third-party licenses, sources and reproducible inputs.
 9. Reuse Maestro nginx's tested Entware build system instead of creating another.
 10. Keep exactly two custom images (Entware and Android) unless a measured need

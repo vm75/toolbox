@@ -94,8 +94,8 @@ Missing builder images fail clearly: run the manual image workflow first.
 **Warning: Never commit private keys, Android signing keystores, passwords,
 tokens or Google API credentials to this repository.** Toolbox has no
 `tools/keys` directory and does not store signing files. Signed Android builds
-use optional, app-specific GitHub Actions repository secrets configured under
-**Settings → Secrets and variables → Actions**. The workflow temporarily
+use app-specific GitHub Actions **environment secrets**, configured under
+**Settings → Environments → android-signing → Environment secrets**. The workflow temporarily
 provides those secrets to the Android build; they are not baked into GHCR
 builder images. See [Android signing](docs/android-signing.md). If you don't
 configure signing secrets, signed APK builds will fail rather than publish an

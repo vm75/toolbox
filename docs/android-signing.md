@@ -25,10 +25,11 @@ base64 < librera-release.p12 | tr -d '\n' > librera-release.base64
 offline in a protected location. Losing them prevents updating an installed
 APK signed with that key.
 
-## 2. Configure repository Actions secrets
+## 2. Configure GitHub Actions environment secrets
 
-Go to **vm75/toolbox → Settings → Secrets and variables → Actions →
-Repository secrets**, then add:
+Go to **vm75/toolbox → Settings → Environments** and create an environment
+named **`android-signing`**. Inside that environment, add these
+**Environment secrets** (not repository secrets):
 
 | Librera secrets | Meaning |
 | --- | --- |
@@ -44,15 +45,22 @@ For Cryptomator use separate secrets:
 For example, if you use GitHub CLI rather than the Settings page:
 
 ```sh
-gh secret set LIBRERA_KEYSTORE_BASE64 < librera-release.base64
-gh secret set LIBRERA_STORE_PASSWORD
-gh secret set LIBRERA_KEY_ALIAS
-gh secret set LIBRERA_KEY_PASSWORD
+gh secret set LIBRERA_KEYSTORE_BASE64 --env android-signing < librera-release.base64
+gh secret set LIBRERA_STORE_PASSWORD --env android-signing
+gh secret set LIBRERA_KEY_ALIAS --env android-signing
+gh secret set LIBRERA_KEY_PASSWORD --env android-signing
 ```
 
 Never pass passwords as command-line arguments to `gh secret set` or leave
 encoded key material in your Git history. The workflow decodes the chosen
 keystore in the runner's temporary directory with restrictive permissions.
+
+Signed Librera/Cryptomator builds select the `android-signing` environment,
+so its secrets are available **only during those manual build jobs**.
+Other tools and `prepare_only=true` runs use a secret-free `build`
+environment (GitHub creates it automatically if needed). You may add
+environment protection rules to `android-signing` if you want an extra
+approval gate. No secret *values* or keystores belong in this repository.
 
 ## 3. Run a manual build
 
@@ -85,7 +93,7 @@ Google Play or F-Droid-signed APKs may not be updateable by these builds.
 Some flavors of Librera and Cryptomator require Google Drive/other provider
 credentials for specific cloud features. Credentials are **not** embedded in
 custom patches. Provision only the credentials needed for a flavor,
-via scoped Actions secrets and/or the build provider's documented integration.
+via scoped GitHub environment secrets and/or the build provider's documented integration.
 Default builds should not rely on a checked-in service account JSON file.
 Do not disable provider security checks or distribute private service secrets.
 

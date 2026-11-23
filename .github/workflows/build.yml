@@ -51,6 +51,9 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
+    # Only signed Android builds access the protected environment's secrets.
+    # All other jobs use the ordinary, secret-free "build" environment.
+    environment: ${{ (inputs.tool == 'librera' || inputs.tool == 'cryptomator') && !inputs.prepare_only && 'android-signing' || 'build' }}
     steps:
       - uses: actions/checkout@v4
         with:

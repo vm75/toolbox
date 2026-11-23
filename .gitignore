@@ -5,6 +5,9 @@
 *.pkcs12
 *.p12
 *.keystore
+*.jks
+*.pfx
+*.base64
 **/google-services.json
 /.gradle/
 /.idea/
