@@ -13,8 +13,12 @@ fi
 
 # Only the expensive environments get their own images. No platform matrix.
 case "$tool:$target" in
-  nginx:router-aarch64|btop:router-aarch64)
+  nginx:entware-aarch64|btop:entware-aarch64)
     builder=entware-aarch64
+    tag=v2
+    ;;
+  btop:entware-armv7)
+    builder=entware-armv7
     tag=v1
     ;;
   librera:android-arm64|cryptomator:android-arm64|mupdf:android-arm64)

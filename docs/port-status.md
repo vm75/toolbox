@@ -25,7 +25,25 @@ probe. For Librera, validate against the independently patched MuPDF checkout,
 then run JNI + Gradle + device tests. The fork itself does not need to be
 rebased or pushed for toolbox to build.
 
-Router cross-builds are also **not yet verified**. Vaultwarden's GNU glibc
-cross toolchain and btop's contemporary C++ requirements may need additional
-compiler/recipe changes. Do not deploy generated IPKs until they pass device
-checks, dependency checks and rollback tests.
+## Entware tool builds
+
+| Tool / target | Source | Cross-compiler | Status |
+| --- | --- | --- | --- |
+| btop / entware-aarch64 | upstream `main` (user-verified example `cece4df4db2112f63d94347f6ee2f89ee7224c7b`) | Pinned GCC 15.2 musl, static | Recipe updated; **CI/IPK validation pending** |
+| btop / entware-armv7 | upstream `main` | Pinned GCC 15.2 armv7-musleabi, static | New cross-target; **CI and device test pending** |
+| nginx / entware-aarch64 | upstream stable | Entware GCC 8.4/glibc 2.27 | Existing dedicated Entware build; not retested |
+| Vaultwarden / entware-aarch64 | upstream `main` | Rust + Zig targeting glibc 2.27 | Untested |
+
+[Failed btop run 45242586997](https://github.com/vm75/toolbox/actions/runs/45242586997):
+the Entware cross-toolchain was built successfully, then GCC **8.4.0** failed
+on upstream btop 1.4.8's `-std=c++23`. This is a *compiler mismatch*, not a
+patch conflict. The replacement btop recipe uses the same GCC 15.2/static
+musl approach reported to work with btop 1.4.7+cece4df. The toolchain
+tarballs are pinned to release `cross-tools/musl-cross@20250929` with
+SHA-256 verification in `images/install-musl-toolchain.sh`. CI with the
+current upstream and the ARMv7 soft-float ABI still needs testing.
+
+ARMv7 is currently offered for btop only. Nginx's Maestro-derived builder
+is AArch64-only, and Rust's armv7-gnueabi target documents a newer minimum
+kernel than Entware armv7sf-k3.2. Do not deploy generated IPKs without
+architecture/runtime checks, a disposable-device test, and rollback steps.

@@ -6,7 +6,7 @@ mkdir -p "$stage/opt/libexec/vaultwarden" "$stage/opt/bin" \
   "$stage/opt/share/doc/vaultwarden"
 version="$(sed -n '/^version = /s/.*"\([^"]*\)".*/\1/p' "$SRC/Cargo.toml" | head -1)"
 version="${version:-0.0.0}"
-if [[ "$TARGET" == router-aarch64 ]]; then
+if [[ "$TARGET" == entware-aarch64 ]]; then
   # Cross-build GNU/Linux for Entware GLIBC 2.27; Alpine MUSL cannot be repackaged.
   command -v cargo
   python3 -m ziglang version
@@ -58,7 +58,7 @@ export DATA_FOLDER="${DATA_FOLDER:-/opt/var/lib/vaultwarden}"
 exec /opt/libexec/vaultwarden/vaultwarden "$@"
 WRAPPER
 chmod 755 "$stage/opt/bin/vaultwarden"
-if [[ "$TARGET" == router-aarch64 ]]; then
+if [[ "$TARGET" == entware-aarch64 ]]; then
   bash "$ROOT/scripts/ipk.sh" vaultwarden "$version-1" "$stage" "$OUT" "Vaultwarden password manager server"
 else
   tar -C "$stage" -czf "$OUT/vaultwarden-$version-$TARGET.tgz" opt

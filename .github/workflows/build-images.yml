@@ -1,4 +1,5 @@
 name: Build toolbox images
+run-name: "Builder ${{ inputs.builder }}${{ inputs.tag && format(' / {0}', inputs.tag) || '' }}"
 # Explicitly manual: image publication never runs on push, tag or a schedule.
 on:
   workflow_dispatch:
@@ -9,9 +10,10 @@ on:
         type: choice
         options:
           - entware-aarch64
+          - entware-armv7
           - android
       tag:
-        description: Optional image tag (default v1 or ndk-r27d)
+        description: Optional image tag (default v2, v1 or ndk-r27d)
         required: false
         default: ''
         type: string
@@ -47,7 +49,8 @@ jobs:
         run: |
           set -euo pipefail
           case "$BUILDER" in
-            entware-aarch64) default_tag=v1 ;;
+            entware-aarch64) default_tag=v2 ;;
+            entware-armv7) default_tag=v1 ;;
             android) default_tag=ndk-r27d ;;
             *) echo "Unknown builder: $BUILDER" >&2; exit 2 ;;
           esac

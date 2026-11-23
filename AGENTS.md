@@ -9,7 +9,7 @@ registry, generalized CI framework, or all-platform build farm.
 
 - `scripts/run.sh`: select Entware/Android image or standard Ubuntu runner
 - `scripts/build.sh`: one upstream fetch, dependency preparation and patch gate
-- `images/`: one Entware and one Android builder image, published manually
+- `images/`: AArch64 Entware, ARMv7 Entware, Android builders, published manually
 - `scripts/ipk.sh`, `scripts/check-router-elf.sh`: router packaging and ELF checks
 - `tools/<tool>/tool.conf`: trusted source URL, ref, allowed target list, dependencies
 - `tools/<tool>/build.sh`: only commands needed for that particular tool
@@ -30,9 +30,10 @@ registry, generalized CI framework, or all-platform build farm.
    Secrets for signed APK builds belong in the GitHub `android-signing`
    environment, never in the repository or builder images.
 8. Preserve attribution, third-party licenses, sources and reproducible inputs.
-9. Reuse Maestro nginx's tested Entware build system instead of creating another.
-10. Keep exactly two custom images (Entware and Android) unless a measured need
-    justifies a third one; other tools use a GitHub-hosted Ubuntu runner.
+9. Reuse Maestro nginx's tested AArch64 Entware build system; btop uses
+   pinned static musl GCC 15.2. Do not cross-use hard-float ARMv7 toolchains.
+10. Keep only the three necessary images (Entware AArch64, Entware ARMv7
+    soft-float, Android); other tools use GitHub-hosted Ubuntu.
 11. The image workflow must remain manual-only; never bake keys or tool-specific
     source into a builder image.
 12. Avoid additional build DSLs, package managers, self-hosted runners or

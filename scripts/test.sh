@@ -29,8 +29,8 @@ for dir in tools/*; do
     echo "Legacy multi-patch directory exists: $dir/patches" >&2; exit 1;
   }
 done
-# The only custom environments are the manually published Entware and Android images.
-[[ -f images/entware-aarch64/Dockerfile && -f images/android/Dockerfile ]] || {
+# The three manually published GHCR builders: two Entware targets and Android.
+[[ -f images/entware-aarch64/Dockerfile && -f images/entware-armv7/Dockerfile && -f images/android/Dockerfile ]] || {
   echo "Missing reusable builder Dockerfile" >&2; exit 1;
 }
 [[ -f scripts/run.sh ]] || { echo "Missing builder selection runner" >&2; exit 1; }
@@ -40,4 +40,28 @@ done
 [[ ! -d tools/keys && ! -d tools/launcher ]] || {
   echo "Unsupported local-only helpers or key folder still present" >&2; exit 1;
 }
+grep -q '^run-name:' .github/workflows/build.yml || {
+  echo "Workflow run names must display the selected tool and target" >&2; exit 1;
+}
+old_target="router""-aarch64"
+! grep -R -l -F "$old_target" scripts tools .github/workflows README.md docs || {
+  echo "Legacy Entware target label still referenced" >&2; exit 1;
+}
+# Smoke-test the opkg Architecture field for both Entware targets without building binaries.
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/stage/opt/bin"
+printf 'smoke-test\n' > "$tmp/stage/opt/bin/example"
+for target in entware-aarch64 entware-armv7; do
+  case "$target" in
+    entware-aarch64) arch=aarch64-3.10 ;;
+    entware-armv7) arch=armv7-3.2 ;;
+  esac
+  TARGET="$target" bash scripts/ipk.sh sample 0.0.0-1 "$tmp/stage" "$tmp/out" "Smoke-test package"
+  package="$tmp/out/sample_0.0.0-1_$arch.ipk"
+  [[ -s "$package" ]] || { echo "Missing $arch test IPK" >&2; exit 1; }
+  tar -xOf "$package" control.tar.gz | tar -xzOf - ./control | grep -qx "Architecture: $arch" || {
+    echo "Wrong opkg Architecture for $target" >&2; exit 1;
+  }
+done
 echo "Toolbox structural checks passed"

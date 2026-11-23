@@ -1,4 +1,5 @@
 name: Build toolbox tool
+run-name: "Build ${{ inputs.tool }} / ${{ inputs.target }}${{ inputs.prepare_only && ' (prepare only)' || '' }}"
 # Deliberately no push, pull_request, release, tag or schedule triggers.
 on:
   workflow_dispatch:
@@ -12,9 +13,9 @@ on:
       target:
         description: Select an allowed target for that tool (validated by tool.conf)
         required: true
-        default: router-aarch64
+        default: entware-aarch64
         type: choice
-        options: [router-aarch64, android-arm64, windows-amd64, linux-amd64, linux-arm64, linux-armv7]
+        options: [entware-aarch64, entware-armv7, android-arm64, windows-amd64, linux-amd64, linux-arm64, linux-armv7]
       upstream_ref:
         description: Optional upstream branch, tag or commit (blank uses tool default)
         required: false
@@ -96,7 +97,7 @@ jobs:
           cache: false
 
       - name: Set up router Vaultwarden GNU cross-compiler
-        if: ${{ !inputs.prepare_only && inputs.tool == 'vaultwarden' && inputs.target == 'router-aarch64' }}
+        if: ${{ !inputs.prepare_only && inputs.tool == 'vaultwarden' && inputs.target == 'entware-aarch64' }}
         shell: bash
         run: |
           set -euo pipefail

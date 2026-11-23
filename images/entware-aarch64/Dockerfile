@@ -43,4 +43,12 @@ ARG JOBS=4
 RUN bash /tmp/build-toolchain.sh --toolchain-only --jobs "${JOBS}" --workdir /opt/nginx-entware \
     && rm -f /tmp/build-toolchain.sh
 
+# GCC 8.4 is needed by Entware/nginx but cannot compile modern btop (C++23).
+# Provide the separately pinned GCC 15.2 musl compiler for static btop.
+USER root
+COPY images/install-musl-toolchain.sh /tmp/install-musl-toolchain.sh
+RUN bash /tmp/install-musl-toolchain.sh aarch64-unknown-linux-musl \
+    28a1d26f14f8ddc3aed31f20705fe696777400eb5952d90470a7e6e2dd1175bb \
+    && rm /tmp/install-musl-toolchain.sh
+USER builder
 WORKDIR /workspace

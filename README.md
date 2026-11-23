@@ -15,15 +15,16 @@ The `publish_release` checkbox defaults to **false**. Publishing is a separate
 step inside the *manually dispatched* build after success.
 
 Before the first full nginx, btop or Android build, manually publish its builder
-image using **Actions → Build toolbox images → Run workflow**. Select either
-`entware-aarch64` or `android`. Both are stored in GHCR and reused across
+image using **Actions → Build toolbox images → Run workflow**. Select
+`entware-aarch64`, `entware-armv7` or `android` as required. The images are
+stored in GHCR and reused across
 tool builds; no image is built automatically. See [builder images](docs/build-images.md).
 A `prepare_only=true` patch check works without any builder image.
 
 To run locally (requires the target's compiler/SDK):
 
 ```sh
-bash scripts/build.sh btop router-aarch64
+bash scripts/build.sh btop entware-aarch64
 bash scripts/build.sh librera android-arm64
 TOOLBOX_MUPDF_REF=1.28.5 bash scripts/build.sh librera android-arm64 10.0.7
 TOOLBOX_PREPARE_ONLY=1 bash scripts/build.sh mupdf android-arm64
@@ -38,9 +39,9 @@ Only listed combinations are supported; the build runner rejects all others.
 
 | Tool | Target(s) | Source / special handling |
 | --- | --- | --- |
-| nginx | router-aarch64 | Maestro-derived Entware cross-builder; produces nginx and matching module IPKs |
-| btop | router-aarch64 | Latest upstream + Entware C++ cross-compiler; IPK |
-| vaultwarden | router-aarch64, linux-amd64, linux-arm64, linux-armv7 | Entware-compatible glibc build for router/IPK; upstream Docker build for other targets |
+| nginx | entware-aarch64 | Maestro-derived Entware cross-builder; nginx and matching module IPKs |
+| btop | entware-aarch64, entware-armv7 | Latest upstream + GCC 15.2 musl static cross-build; IPK for either Entware ABI |
+| vaultwarden | entware-aarch64, linux-amd64, linux-arm64, linux-armv7 | Zig/Rust glibc 2.27 cross-build for Entware AArch64 IPK; upstream Docker for other Linux targets |
 | mupdf | linux-amd64, android-arm64 | Patched MuPDF; Android source prepared for dependent Librera native build |
 | librera | android-arm64 | Depends on patched MuPDF checkout; signed F-Droid APK |
 | busybox | windows-amd64 | MinGW BusyBox-w32 |
@@ -50,11 +51,14 @@ Only listed combinations are supported; the build runner rejects all others.
 | wireguard | linux-amd64, linux-arm64, linux-armv7 | wireguard-go plus wg-util |
 | wg-util | linux-amd64, linux-arm64, linux-armv7 | Key utility from vm75/wg-util |
 
-`router-aarch64` specifically means the **Entware aarch64-k3.10**
-environment used by Maestro, not generic Linux ARM64. IPK is generated for
-nginx, btop and Vaultwarden only; router binaries are checked for the AArch64
-ELF target, dynamic loader and glibc version before packaging. Cross-compiling
-does not replace testing on your router.
+`entware-aarch64` means **Entware aarch64-k3.10** (not generic Linux ARM64);
+`entware-armv7` means **Entware armv7sf-k3.2**, with the 32-bit soft-float
+ABI (not hard-float). Both have glibc 2.27 for dynamically linked programs.
+IPKs are generated for nginx (AArch64), btop (both), and Vaultwarden
+(AArch64). Entware ARMv7 currently supports btop only; nginx's build and
+Vaultwarden's current Rust target are not validated for Linux 3.2. Btop is built *fully static* with pinned GCC 15.2/musl, not Entware's
+older GCC 8.4; verify on the actual device before deploying.
+The Actions run table displays the selected tool and target as its run name.
 
 ## Upstream updates and patch failures
 
@@ -85,11 +89,11 @@ to require code work.
 
 GitHub Actions is manual-only. Source pins are recorded in `dist/build-info.txt`,
 along with patch hashes, checksums and any packaged IPKs/APKs. A second
-manual-only workflow publishes **two versioned builder images**:
-`entware-aarch64:v1` and `android:ndk-r27d`. Nginx/btop and
-Librera/Cryptomator use these images without repeating the SDK/toolchain
-installation. Vaultwarden, Go tools and native Linux/Windows builds remain on
-GitHub-hosted Ubuntu; no third builder image or external cache is needed.
+manual-only workflow publishes **three versioned builder images**:
+`entware-aarch64:v2`, `entware-armv7:v1` and `android:ndk-r27d`.
+Nginx/btop and Librera/Cryptomator use these images without rebuilding their
+toolchains on each run. Vaultwarden, Go tools and native Linux/Windows builds remain on
+GitHub-hosted Ubuntu; no self-hosted runners or external caches are used.
 Missing builder images fail clearly: run the manual image workflow first.
 **Warning: Never commit private keys, Android signing keystores, passwords,
 tokens or Google API credentials to this repository.** Toolbox has no

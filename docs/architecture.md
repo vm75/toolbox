@@ -26,14 +26,21 @@ manual workflow_dispatch (tool + compatible target + optional refs)
 
 ## Target isolation
 
-- **Router**: Entware aarch64-k3.10 (glibc 2.27) exactly as in Maestro.
-  Nginx uses its native Entware IPK recipes; btop uses the shared Entware
-  toolchain and the common IPK packager; Vaultwarden uses Zig/Rust's explicit
-  aarch64 GNU glibc-2.27 target and the same packager. Reject generic ARM64
-  binaries whose interpreter or glibc requirements do not match.
+- **Entware AArch64**: `entware-aarch64` uses aarch64-k3.10, glibc 2.27.
+  Nginx uses Maestro's Entware GCC and native IPK recipes. Btop instead uses
+  GCC 15.2/musl to generate a fully static C++23 binary, packaged as
+  `aarch64-3.10` IPK.
+- **Entware ARMv7**: `entware-armv7` is armv7sf-k3.2, **soft-float**,
+  glibc 2.27. Btop uses a separate GCC 15.2 armv7-musleabi static toolchain
+  and packages `armv7-3.2` IPKs. Only btop currently supports this target;
+  nginx's Entware module profile is AArch64-only, and the current Rust
+  armv7-gnueabi target documents a Linux 4.15+ minimum (not Entware 3.2).
+- **ABI checks**: Verify architecture, ARMv7 soft-float calling convention,
+  loader path (for dynamic programs), and glibc <= 2.27. A static musl
+  binary must have neither an ELF interpreter nor shared dependencies.
 - **Android**: Librera and MuPDF native build share a workspace. The
   patched MuPDF provides WebP, JPEG XL and reflow support to the patched
-  Librera Gradle/NDK integration. APKs are signed from GitHub Secrets.
+  Librera Gradle/NDK integration. APKs are signed using GitHub environment secrets.
 - **Windows**: BusyBox-w32 only, using MinGW.
 - **Linux**: independent native/cross tool recipes, no unsupported targets.
 
@@ -77,12 +84,13 @@ unchanged source preparation and `build.sh` inside the selected environment:
 
 | Build environment | Tools | Image |
 | --- | --- | --- |
-| Entware aarch64-k3.10 | nginx, btop | `ghcr.io/vm75/toolbox/entware-aarch64:v1` |
+| Entware aarch64-k3.10 | nginx, btop | `ghcr.io/vm75/toolbox/entware-aarch64:v2` |
+| Entware armv7sf-k3.2 | btop | `ghcr.io/vm75/toolbox/entware-armv7:v1` |
 | Android SDK/NDK | Librera, Cryptomator, Android MuPDF | `ghcr.io/vm75/toolbox/android:ndk-r27d` |
 | GitHub Ubuntu 24.04 | Everything else, including router Vaultwarden (Rust/Zig) | No custom image |
 
 The image name describes the *cross-compilation target*, not the container
-architecture. Both builders run as `linux/amd64` on a GitHub-hosted Ubuntu
+architecture. All three builders run as `linux/amd64` on a GitHub-hosted Ubuntu
 runner and produce the requested target output.
 
 The `Build toolbox images` workflow builds **only the selected image** and

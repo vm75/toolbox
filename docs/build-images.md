@@ -1,10 +1,12 @@
 # Builder images (GitHub Actions + GHCR only)
 
-Toolbox has **two** reusable build environments, not one image per tool.
+Toolbox has **three** reusable build environments, not one image per tool. There
+are two Entware architectures and one Android SDK.
 
 | Builder | Default tag | Used for | Important contents |
 | --- | --- | --- | --- |
-| `entware-aarch64` | `v1` | nginx, btop (router IPKs) | Maestro-derived Entware aarch64-k3.10 toolchain and sysroot |
+| `entware-aarch64` | `v2` | nginx, btop | Maestro Entware aarch64-k3.10 GCC 8.4 for nginx; GCC 15.2 musl for static btop |
+| `entware-armv7` | `v1` | btop (armv7sf-k3.2) | GCC 15.2 musl ARMv7 *soft-float*, statically linked |
 | `android` | `ndk-r27d` | Librera, Cryptomator, Android MuPDF | JDK 21, API 37, build-tools 37.0.0, NDK 27.2.12479018, CMake 3.22.1 |
 
 Both containers run on GitHub's `ubuntu-24.04` AMD64 runner. The target name
@@ -17,12 +19,14 @@ add maintenance without yet proving a meaningful time saving.
 
 1. In repository **Settings → Actions**, ensure actions are enabled.
 2. In **Actions → Build toolbox images → Run workflow**, select
-   `entware-aarch64` and run it. This can take substantial CPU, time and
-   disk space because it builds the Entware cross-toolchain.
-3. Repeat for `android`. That image downloads the pinned Android SDK/NDK
-   and command-line tools.
+   `entware-aarch64` and run it. It builds the Entware cross-toolchain plus
+   installs a SHA-256-pinned GCC 15.2 musl AArch64 cross-compiler.
+3. Repeat for `entware-armv7` if building 32-bit btop, or `android` if
+   building APKs. ARMv7 uses a small, static-musl-only image because nginx's
+   module build is AArch64-specific.
 4. The resulting packages are published to the repository's GHCR namespace:
-   - `ghcr.io/vm75/toolbox/entware-aarch64:v1`
+   - `ghcr.io/vm75/toolbox/entware-aarch64:v2`
+   - `ghcr.io/vm75/toolbox/entware-armv7:v1`
    - `ghcr.io/vm75/toolbox/android:ndk-r27d`
 
 The publishing workflow has `packages: write` permission and authenticates
@@ -56,7 +60,11 @@ tag in `scripts/run.sh`. For strict reproducibility, record the published
 image digest alongside source SHAs before distributing artifacts.
 
 `images/entware-aarch64/Dockerfile` reuses the existing Maestro-derived
-nginx toolchain bootstrap. `images/android/Dockerfile` verifies the SHA-256
+nginx toolchain bootstrap, adding the GCC 15.2 musl compiler for btop.
+`images/entware-armv7/Dockerfile` installs the matching ARMv7 soft-float
+compiler. Both use pinned release SHA-256 checksums from
+[cross-tools/musl-cross](https://github.com/cross-tools/musl-cross/releases/tag/20250929)
+and never install compilers during normal tool builds. `images/android/Dockerfile` verifies the SHA-256
 of Google's pinned command-line-tools archive before installing Android
 packages. Keep APK signing secrets in GitHub Actions only.
 

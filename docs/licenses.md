@@ -6,6 +6,7 @@ in [../LICENSE](../LICENSE). This does not relicense imported or patched code.
 | Project | Origin | License / notice |
 | --- | --- | --- |
 | nginx builder | [vm75/maestro](https://github.com/vm75/maestro) | MIT; attribution retained |
+| GCC 15.2 musl cross-compilers (builder images only) | [cross-tools/musl-cross](https://github.com/cross-tools/musl-cross/releases/tag/20250929) | GCC, binutils and musl retain their respective GPL/runtime-exception and MIT licenses; observe source redistribution requirements for published GHCR images |
 | MuPDF patch | [ArtifexSoftware/mupdf](https://github.com/ArtifexSoftware/mupdf) and [vm75/mupdf](https://github.com/vm75/mupdf) | AGPL-3.0 or commercial licensing from Artifex |
 | Librera patch | [foobnix/LibreraReader](https://github.com/foobnix/LibreraReader) and [vm75/LibreraReader](https://github.com/vm75/LibreraReader) | Upstream `LICENSE.txt` plus bundled component licenses |
 | btop | [aristocratos/btop](https://github.com/aristocratos/btop) | Apache-2.0 |
