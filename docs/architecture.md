@@ -52,8 +52,11 @@ manual workflow_dispatch (tool + compatible target + optional refs)
 `tool.conf` defines `SOURCE_URL`, `SOURCE_REF`, space-delimited `TARGETS`,
 and `DEPS`. The runner exports `ROOT`, `WORKSPACE`, `SRC`, `OUT`,
 `TARGET`, and `TOOL` to `build.sh`. `TOOLBOX_MUPDF_REF` overrides only
-Librera's dependency ref. For reproducibility, pass exact upstream commit
-IDs instead of floating branch names.
+Librera's dependency ref. The common upstream ref is exported as
+`TOOLBOX_UPSTREAM_REF`; for nginx it selects an exact signed X.Y.Z source
+release, while an empty ref selects the latest stable release. Other tools
+accept Git branches, tags or commits. Prefer exact refs over floating branches
+for reproducibility.
 
 There is one optional `custom.patch` for each project. It is applied once
 to fresh source and never committed back to the upstream repository.
