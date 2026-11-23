@@ -58,9 +58,13 @@ keystore in the runner's temporary directory with restrictive permissions.
 Signed Librera/Cryptomator builds select the `android-signing` environment,
 so its secrets are available **only during those manual build jobs**.
 Other tools and `prepare_only=true` runs use a secret-free `build`
-environment (GitHub creates it automatically if needed). You may add
-environment protection rules to `android-signing` if you want an extra
-approval gate. No secret *values* or keystores belong in this repository.
+environment (GitHub creates it automatically if needed). Both select
+`deployment: false` to avoid recording builds as GitHub Deployments;
+neither build environment installs software anywhere. Existing deployment
+history is not deleted. Required-reviewer and wait-timer environment
+protection rules still work; custom GitHub App deployment protection rules
+are incompatible with `deployment: false`.
+No secret *values* or keystores belong in this repository.
 
 ## 3. Run a manual build
 
