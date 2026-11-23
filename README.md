@@ -91,5 +91,12 @@ Librera/Cryptomator use these images without repeating the SDK/toolchain
 installation. Vaultwarden, Go tools and native Linux/Windows builds remain on
 GitHub-hosted Ubuntu; no third builder image or external cache is needed.
 Missing builder images fail clearly: run the manual image workflow first.
-The repo contains no private signing keystore, user credentials or Google API
-keys. Store APK keys as encrypted Actions secrets and back them up offline.
+**Warning: Never commit private keys, Android signing keystores, passwords,
+tokens or Google API credentials to this repository.** Toolbox has no
+`tools/keys` directory and does not store signing files. Signed Android builds
+use optional, app-specific GitHub Actions repository secrets configured under
+**Settings → Secrets and variables → Actions**. The workflow temporarily
+provides those secrets to the Android build; they are not baked into GHCR
+builder images. See [Android signing](docs/android-signing.md). If you don't
+configure signing secrets, signed APK builds will fail rather than publish an
+unsigned or incorrectly signed release.
