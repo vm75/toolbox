@@ -46,8 +46,8 @@ grep -q '^run-name:' .github/workflows/build.yml || {
 [[ ! -d tools/rsync ]] && ! grep -Fq 'rsync' .github/workflows/build.yml || {
   echo "Removed rsync recipe must not appear in the workflow" >&2; exit 1;
 }
-# GitHub Actions cannot make one dropdown depend on another. Check that
-# the combined dropdown lists exactly the tool.conf-supported combinations.
+# The workflow dropdown is a configurable shortlist. Every visible choice
+# must be valid, but supported tool/target recipes need not all be listed.
 declare -A workflow_choices=()
 while IFS= read -r selection; do
   [[ "$selection" == *' / '* ]] || { echo "Invalid dropdown choice: $selection" >&2; exit 1; }
@@ -67,17 +67,16 @@ while IFS= read -r selection; do
   workflow_choices["$name/$target"]=1
 done < <(sed -n '/^      build:/,/^      upstream_ref:/s/^          - //p' .github/workflows/build.yml)
 [[ ${#workflow_choices[@]} -gt 0 ]] || { echo "Missing tool/target dropdown choices" >&2; exit 1; }
-for conf in tools/*/tool.conf; do
-  name="${conf#tools/}"
-  name="${name%/tool.conf}"
-  TARGETS=
-  source "$conf"
-  for target in $TARGETS; do
-    [[ -n "${workflow_choices["$name/$target"]+set}" ]] || {
-      echo "Missing tool/target choice: $name/$target" >&2; exit 1;
-    }
-  done
-done
+default_choice="$(sed -n '/^      build:/,/^      upstream_ref:/s/^        default: //p' .github/workflows/build.yml)"
+[[ -n "$default_choice" && "$default_choice" == *' / '* ]] || {
+  echo "Invalid default workflow choice" >&2; exit 1;
+}
+default_tool="${default_choice%% / *}"
+default_target="${default_choice#* / }"
+[[ "$default_tool" != 'John the Ripper' ]] || default_tool=john
+[[ -n "${workflow_choices["$default_tool/$default_target"]+set}" ]] || {
+  echo "Default workflow choice must be present in the dropdown" >&2; exit 1;
+}
 grep -Fq 'tool=john' .github/workflows/build.yml || {
   echo "John the Ripper must map to the internal john recipe" >&2; exit 1;
 }
