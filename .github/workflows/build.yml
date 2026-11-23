@@ -9,6 +9,8 @@ on:
         required: true
         default: btop / entware-aarch64
         type: choice
+        # Editable shortlist: remove seldom-used choices below; keep default listed.
+        # Valid combinations are defined in tools/*/tool.conf.
         options:
           - btop / entware-aarch64
           - btop / entware-armv7
