@@ -43,6 +43,13 @@ done
 grep -q '^run-name:' .github/workflows/build.yml || {
   echo "Workflow run names must display the selected tool and target" >&2; exit 1;
 }
+[[ ! -d tools/rsync ]] && ! grep -Fq 'rsync' .github/workflows/build.yml || {
+  echo "Removed rsync recipe must not appear in the workflow" >&2; exit 1;
+}
+grep -Fq "'John the Ripper'" .github/workflows/build.yml &&
+  grep -Fq "TOOLBOX_TOOL: \${{ inputs.tool == 'John the Ripper' && 'john' || inputs.tool }}" .github/workflows/build.yml || {
+  echo "John the Ripper must map to the internal john recipe" >&2; exit 1;
+}
 # Build jobs may use signing secrets, but must not appear as deployments.
 grep -Fq 'deployment: false' .github/workflows/build.yml || {
   echo "Tool builds must not create GitHub Deployments" >&2; exit 1;
