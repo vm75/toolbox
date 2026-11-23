@@ -46,8 +46,39 @@ grep -q '^run-name:' .github/workflows/build.yml || {
 [[ ! -d tools/rsync ]] && ! grep -Fq 'rsync' .github/workflows/build.yml || {
   echo "Removed rsync recipe must not appear in the workflow" >&2; exit 1;
 }
-grep -Fq "'John the Ripper'" .github/workflows/build.yml &&
-  grep -Fq "TOOLBOX_TOOL: \${{ inputs.tool == 'John the Ripper' && 'john' || inputs.tool }}" .github/workflows/build.yml || {
+# GitHub Actions cannot make one dropdown depend on another. Check that
+# the combined dropdown lists exactly the tool.conf-supported combinations.
+declare -A workflow_choices=()
+while IFS= read -r selection; do
+  [[ "$selection" == *' / '* ]] || { echo "Invalid dropdown choice: $selection" >&2; exit 1; }
+  name="${selection%% / *}"
+  target="${selection#* / }"
+  if [[ "$name" == 'John the Ripper' ]]; then name=john; fi
+  [[ "$name" =~ ^[a-z0-9-]+$ && "$target" =~ ^[a-z0-9-]+$ ]] || exit 1
+  [[ -f "tools/$name/tool.conf" ]] || { echo "Unknown dropdown tool: $name" >&2; exit 1; }
+  TARGETS=
+  source "tools/$name/tool.conf"
+  [[ " $TARGETS " == *" $target "* ]] || {
+    echo "Invalid tool/target choice: $selection" >&2; exit 1;
+  }
+  [[ -z "${workflow_choices["$name/$target"]+set}" ]] || {
+    echo "Duplicate tool/target choice: $selection" >&2; exit 1;
+  }
+  workflow_choices["$name/$target"]=1
+done < <(sed -n '/^      build:/,/^      upstream_ref:/s/^          - //p' .github/workflows/build.yml)
+[[ ${#workflow_choices[@]} -gt 0 ]] || { echo "Missing tool/target dropdown choices" >&2; exit 1; }
+for conf in tools/*/tool.conf; do
+  name="${conf#tools/}"
+  name="${name%/tool.conf}"
+  TARGETS=
+  source "$conf"
+  for target in $TARGETS; do
+    [[ -n "${workflow_choices["$name/$target"]+set}" ]] || {
+      echo "Missing tool/target choice: $name/$target" >&2; exit 1;
+    }
+  done
+done
+grep -Fq 'tool=john' .github/workflows/build.yml || {
   echo "John the Ripper must map to the internal john recipe" >&2; exit 1;
 }
 # Build jobs may use signing secrets, but must not appear as deployments.
