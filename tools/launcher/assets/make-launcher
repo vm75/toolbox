@@ -1,0 +1,165 @@
+#!/usr/bin/perl
+
+use Modern::Perl;
+use File::Basename;
+use Env qw(PATH HOME APPHOME DEVHOME PWD);
+use File::Path qw(remove_tree);
+use File::Glob qw(:globally :nocase);
+use JSON;
+use Data::Dumper;
+
+if (@ARGV < 1 || ! -f $ARGV[0]) {
+  exit 1;
+}
+
+my($appName, $dir, $ext) = fileparse($ARGV[0], qr/\.[^.]*/);
+$ext = lc $ext;
+$appName =~ s/Launcher$//i;
+
+my ($appPath, $iconPath, $iconPatho);
+
+if ($ext eq ".exe") {
+  $appPath = $ARGV[0];
+} elsif ($ext eq ".ico") {
+  $iconPath = $ARGV[0];
+} elsif ($ext eq ".cfg") {
+  open( my $fh, '<', "$ARGV[0]" );
+  my $cfg = from_json(join ("", <$fh>));
+  close ($fh);
+  $appPath = $cfg->{'LaunchInfo'}->{'App32Path'} || $cfg->{'LaunchInfo'}->{'App64Path'};
+}
+
+if (! defined $iconPath && -f $appPath) {
+  mkdir "./tmp_icon_cache";
+  my @args = ("$DEVHOME/resutils/iconsext.exe", '/save', "$appPath", "tmp_icon_cache\\", "-icons");
+  system (@args);
+
+  for my $ico (<tmp_icon_cache/*.ico>) {
+    if (-s $ico > 0) {
+      if ($ico =~ /main/i) {
+        $iconPath = $ico;
+        last;
+      } elsif ($ico =~ /\D(\d*)\.ico$/i) {
+        print "$ico = $1 = $iconPatho\n";
+        if (! defined $iconPath || $1 < $iconPatho) {
+          $iconPath = $ico;
+          $iconPatho = $1;
+          next;
+        }
+      }
+    }
+  }
+} elsif (! defined $iconPath) {
+  exit 2;
+}
+
+my $laucherSrc = <<END;
+#include <windows.h>
+#include <stdio.h>  /* defines FILENAME_MAX */
+#include <direct.h>
+#include <string.h>
+
+char* quote(char* str) {
+  int len = strlen(str);
+  char* newStr;
+  if (str[0] == str[len-1] && (str[0] == '\\'' || str[0] == '"')) {
+    newStr = strdup(str);
+    if (str[0] == '\\'') {
+      newStr[0] = newStr[len-1] = '"';
+    }
+  } else {
+    char* newStr = (char*)malloc(len+3);
+    sprintf(newStr, "\\"%s\\"", str);
+  }
+  return newStr;
+}
+
+int fileExists(const char * filename) {
+  FILE * file = fopen(filename, "r");
+  if (file != NULL) {
+      fclose(file);
+      return 1;
+  }
+  return 0;
+}
+
+char* getLauncherConfig(char* executable) {
+  char* appName = strdup(executable);
+  char* launcherConfig = (char*)(malloc(strlen(appName) + 20));
+
+  // remove ext
+  *strrchr(appName, '.') = 0;
+
+  int appNameLen = strlen(appName);
+  if (appNameLen > 8 && !strcmpi(appName+(appNameLen - 8), "Launcher")) {
+    appName[appNameLen-8] = 0;
+    appNameLen -= 8;
+  }
+
+  sprintf(launcherConfig, "%sLauncher.cfg", appName);
+  if (fileExists(launcherConfig)) {
+    return launcherConfig;
+  }
+
+  sprintf(launcherConfig, "%s.cfg", appName);
+  if (fileExists(launcherConfig)) {
+    return launcherConfig;
+  }
+
+  return NULL;
+}
+
+int main(int argc, char** argv) {
+  char cCurrentPath[FILENAME_MAX];
+  _getcwd(cCurrentPath, sizeof(cCurrentPath));
+
+  int numArgs=argc+2;
+  char **launcherArgs = (char**)(malloc((numArgs+1)*sizeof(char*)));
+  launcherArgs[0] = getenv ("LAUNCHER");
+  launcherArgs[1] = "--conf";
+  launcherArgs[2] = getLauncherConfig(argv[0]);
+
+  if (launcherArgs[2] != NULL) {
+    for (int i=1; i<argc; i++) {
+      //MessageBox(NULL, argv[i], "ARG", 0);
+      launcherArgs[2+i] = quote(argv[i]);
+    }
+    launcherArgs[numArgs] = 0;
+    execv(launcherArgs[0], launcherArgs);
+  }
+
+  return 0;
+}
+END
+
+open (my $fh, ">${appName}Launcher.c");
+print $fh $laucherSrc;
+close ($fh);
+
+my @args = ("$DEVHOME/dm/bin/dmc.exe", "-L/exet:nt/su:windows", "${appName}Launcher.c");
+
+if (defined $iconPath && -f $iconPath) {
+  open ($fh, ">${appName}Launcher.rc");
+  print $fh "ICON_MAIN     ICON    ${iconPath}";
+  close ($fh);
+
+  push @args, "${appName}Launcher.rc";
+}
+system (@args);
+
+if (-f "${appName}Launcher.exe") {
+  my @args = ("$APPHOME/UniversalExtractor/bin/upx.exe", "${appName}Launcher.exe");
+  system (@args);
+}
+
+if ($ext ne ".ico") {
+  remove_tree("tmp_icon_cache/");
+}
+
+foreach $ext (qw(c rc map res obj)) {
+  if (-f "${appName}Launcher.${ext}") {
+    unlink("${appName}Launcher.${ext}");
+  }
+}
+
+1;
