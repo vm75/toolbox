@@ -25,6 +25,3 @@ if [ -f "${HOME}/.profile" ] ; then
   source "${HOME}/.profile"
 fi
 
-if [ -f "${HOME}/.shenvrc" ] ; then
-  source "${HOME}/.shenvrc"
-fi

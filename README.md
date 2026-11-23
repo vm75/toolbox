@@ -2,8 +2,7 @@
 
 Build personal tools from **clean upstream source** on demand. This repo stores
 small target-specific build recipes and at most one `custom.patch` per tool;
-it does **not** mirror or rebase upstream repositories. Inspired by
-[shenv](https://github.com/vm75/shenv) and the
+it does **not** mirror or rebase upstream repositories. The router nginx build is based on the
 [Maestro nginx cross-builder](https://github.com/vm75/maestro).
 
 ## Quick start
@@ -45,12 +44,11 @@ Only listed combinations are supported; the build runner rejects all others.
 | mupdf | linux-amd64, android-arm64 | Patched MuPDF; Android source prepared for dependent Librera native build |
 | librera | android-arm64 | Depends on patched MuPDF checkout; signed F-Droid APK |
 | busybox | windows-amd64 | MinGW BusyBox-w32 |
-| cryptomator | android-arm64 | Signed APK; original shenv patch |
+| cryptomator | android-arm64 | Signed APK; local customization patch |
 | rsync | linux-amd64 | Native source build |
 | john | linux-amd64 | John the Ripper jumbo source build |
 | wireguard | linux-amd64, linux-arm64, linux-armv7 | wireguard-go plus wg-util |
 | wg-util | linux-amd64, linux-arm64, linux-armv7 | Key utility from vm75/wg-util |
-| launcher | local only | Retained shenv helper; depends on user-local Windows compilers/tools |
 
 `router-aarch64` specifically means the **Entware aarch64-k3.10**
 environment used by Maestro, not generic Linux ARM64. IPK is generated for
@@ -62,8 +60,8 @@ does not replace testing on your router.
 
 A tool with no `custom.patch` builds upstream unmodified. MuPDF and Librera
 each have **one** independently versioned patch extracted from their respective
-forks, not from the obsolete `shenv/tools/librera` patch. When the new upstream
-revision cannot accept a patch, `git apply --check` exits nonzero and no build
+forks. When the new upstream revision cannot accept a patch,
+`git apply --check` exits nonzero and no build
 or release is published. Update that one patch locally; **no upstream fork
 push, rebase of published history, or automatic conflict resolution** is needed.
 See [patch maintenance](docs/patches.md).

@@ -37,4 +37,7 @@ done
 [[ ! -e .github/workflows/toolchain-image.yml && ! -e tools/nginx/Dockerfile ]] || {
   echo "Legacy single-purpose image workflow or Dockerfile still present" >&2; exit 1;
 }
+[[ ! -d tools/keys && ! -d tools/launcher ]] || {
+  echo "Unsupported local-only helpers or key folder still present" >&2; exit 1;
+}
 echo "Toolbox structural checks passed"

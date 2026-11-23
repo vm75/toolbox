@@ -83,8 +83,8 @@ Google Play or F-Droid-signed APKs may not be updateable by these builds.
 ## Services and third-party API keys
 
 Some flavors of Librera and Cryptomator require Google Drive/other provider
-credentials for specific cloud features. Keys are **not** imported from shenv
-or hard-coded into patches. Provision only the keys needed for a flavor,
+credentials for specific cloud features. Credentials are **not** embedded in
+custom patches. Provision only the credentials needed for a flavor,
 via scoped Actions secrets and/or the build provider's documented integration.
 Default builds should not rely on a checked-in service account JSON file.
 Do not disable provider security checks or distribute private service secrets.

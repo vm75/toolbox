@@ -16,7 +16,6 @@ in [../LICENSE](../LICENSE). This does not relicense imported or patched code.
 | John the Ripper jumbo | [magnumripper/JohnTheRipper](https://github.com/magnumripper/JohnTheRipper) | Upstream component licenses |
 | wireguard-go | [WireGuard/wireguard-go](https://github.com/WireGuard/wireguard-go) | MIT |
 | wg-util | [vm75/wg-util](https://github.com/vm75/wg-util) | See upstream repository |
-| shenv resources | [vm75/shenv](https://github.com/vm75/shenv) | Original author's material; no independent license inferred |
 
 The patches are deltas against third-party source, not a grant of a new license.
 Check each upstream license, generated binary distribution requirements, source
@@ -25,6 +24,7 @@ releases. Do not represent AGPL/GPL components as MIT. Codec packages and
 web-vault bundles have their own license obligations.
 
 The `tools/nginx/upstream-builder.sh` file was adapted from the original
-Maestro builder. Selected `assets/` and BusyBox/Cryptomator changes came from
-shenv. Both repositories are owned by vm75. Neither sensitive shenv keys nor
-proprietary tool binaries have been copied.
+Maestro builder. Custom BusyBox/Cryptomator patch deltas and the retained
+runtime helper assets are project-specific modifications, not a grant of any
+new upstream license. No local secret files or proprietary compiler binaries
+are included.
