@@ -1,0 +1,30 @@
+#!bash
+
+export TERM=xterm
+
+export PS1_DIR=$(basename "${DEVROOT:-$HOME}")
+export PS1='\[\e[0;35m\][\h] \[\e[1;33m\]${PS1_DIR} \[\e[0;34m\]\W $(if [ $? -eq 0 ] ; then echo "\[\e[1;32m\]" ; else echo "\[\e[1;31m\]" ; fi)$ \[\e[0m\]'
+
+VSCODE_PATH="${LOCALAPPDATA}/Programs/Microsoft VS Code/Code.exe"
+if [ -f "${VSCODE_PATH}" ] ; then
+  export EDITOR=${VSCODE_PATH}
+else
+  export EDITOR=vi
+fi
+
+alias path='echo ${PATH}'
+alias cls=clear
+alias dir=ls
+alias ..='cd ..'
+alias reload='source "${SCRIPTDIR}/localrc"'
+alias bin='cd ${SCRIPTDIR}'
+alias halt='shutdown'
+alias reboot='shutdown /r'
+
+if [ -f "${HOME}/.profile" ] ; then
+  source "${HOME}/.profile"
+fi
+
+if [ -f "${HOME}/.shenvrc" ] ; then
+  source "${HOME}/.shenvrc"
+fi
