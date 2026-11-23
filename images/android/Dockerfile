@@ -29,12 +29,16 @@ RUN mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools" \
     && mv "${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools" "${ANDROID_SDK_ROOT}/cmdline-tools/latest" \
     && rm /tmp/android-tools.zip
 
-# SDK API 37 and build-tools 37.0.0 are used by both upstream Android projects.
+# API 37 uses explicit minor-version package IDs. Cryptomator compiles against
+# 37.0 (compileSdk 37); Librera requires 37.2 (compileSdkMinor 2).
 # MuPDF's JPEG XL build requires NDK r27d and CMake.
 RUN yes | sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --licenses > /dev/null \
     && sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" \
-      "platform-tools" "platforms;android-37" "build-tools;37.0.0" \
-      "ndk;27.2.12479018" "cmake;3.22.1" \
+      "platform-tools" "platforms;android-37.0" "platforms;android-37.2" \
+      "build-tools;37.0.0" "ndk;27.2.12479018" "cmake;3.22.1" \
+    && test -f "${ANDROID_SDK_ROOT}/platforms/android-37.0/android.jar" \
+    && test -f "${ANDROID_SDK_ROOT}/platforms/android-37.2/android.jar" \
+    && test -x "${ANDROID_SDK_ROOT}/build-tools/37.0.0/aapt2" \
     && test -x "${ANDROID_NDK_HOME}/ndk-build"
 
 # Match the UID on GitHub-hosted Ubuntu runners for bind-mounted workspaces.

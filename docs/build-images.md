@@ -7,7 +7,7 @@ are two Entware architectures and one Android SDK.
 | --- | --- | --- | --- |
 | `entware-aarch64` | `v3` | nginx, btop | Entware aarch64-k3.10 GCC 8.4 for nginx; GCC 15.2 musl for static btop |
 | `entware-armv7` | `v2` | nginx, btop (armv7sf-k3.2) | Entware GCC8/glibc 2.27 and GCC 15.2 musl ARMv7 *soft-float* |
-| `android` | `ndk-r27d` | Librera, Cryptomator, Android MuPDF | JDK 21, API 37, build-tools 37.0.0, NDK 27.2.12479018, CMake 3.22.1 |
+| `android` | `ndk-r27d` | Librera, Cryptomator, Android MuPDF | JDK 21, API 37.0 and 37.2, build-tools 37.0.0, NDK 27.2.12479018, CMake 3.22.1 |
 
 Both containers run on GitHub's `ubuntu-24.04` AMD64 runner. The target name
 refers to what the cross-compiler produces, not to an emulated container CPU.
