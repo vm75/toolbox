@@ -50,9 +50,11 @@ args=(docker run --rm --user builder
   --env "TOOLBOX_NGINX_VERSION=${TOOLBOX_NGINX_VERSION:-}"
   --env "TOOLBOX_MUPDF_REF=${TOOLBOX_MUPDF_REF:-}")
 
-if [[ "$builder" == entware-aarch64 ]]; then
+if [[ "$builder" == entware-aarch64 || "$builder" == entware-armv7 ]]; then
+  # Both Entware images pre-build the matching nginx toolchain here.
+  # ARMv7 is not Android: never require a keystore for router builds.
   args+=(--env TOOLBOX_NGINX_CACHE=/opt/nginx-entware)
-elif [[ "$tool" != mupdf ]]; then
+elif [[ "$builder" == android && "$tool" != mupdf ]]; then
   # The keystore is mounted read-only at build time, never baked into an image.
   [[ -s "${ANDROID_KEYSTORE_FILE:-}" ]] || {
     echo "Android keystore missing; see docs/android-signing.md" >&2
