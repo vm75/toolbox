@@ -7,8 +7,9 @@ case "$TARGET" in
   *) echo "Unsupported nginx target: $TARGET" >&2; exit 2 ;;
 esac
 args=(--no-update --target "$entware_target" --channel stable --jobs "${TOOLBOX_JOBS:-4}" --workdir "${TOOLBOX_NGINX_CACHE:-$WORKSPACE/nginx-cache}" --output "$OUT/nginx")
-if [[ -n "${TOOLBOX_NGINX_VERSION:-}" ]]; then
-  args=(--no-update --target "$entware_target" --version "$TOOLBOX_NGINX_VERSION" --jobs "${TOOLBOX_JOBS:-4}" --workdir "${TOOLBOX_NGINX_CACHE:-$WORKSPACE/nginx-cache}" --output "$OUT/nginx")
+# The normal upstream-ref field selects an exact nginx.org release when set.
+if [[ -n "${TOOLBOX_UPSTREAM_REF:-}" ]]; then
+  args=(--no-update --target "$entware_target" --version "$TOOLBOX_UPSTREAM_REF" --jobs "${TOOLBOX_JOBS:-4}" --workdir "${TOOLBOX_NGINX_CACHE:-$WORKSPACE/nginx-cache}" --output "$OUT/nginx")
 fi
 bash "$ROOT/tools/nginx/upstream-builder.sh" "${args[@]}"
 shopt -s nullglob
