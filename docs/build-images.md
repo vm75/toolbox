@@ -5,7 +5,7 @@ are two Entware architectures and one Android SDK.
 
 | Builder | Default tag | Used for | Important contents |
 | --- | --- | --- | --- |
-| `entware-aarch64` | `v3` | nginx, btop | Maestro Entware aarch64-k3.10 GCC 8.4 for nginx; GCC 15.2 musl for static btop |
+| `entware-aarch64` | `v3` | nginx, btop | Entware aarch64-k3.10 GCC 8.4 for nginx; GCC 15.2 musl for static btop |
 | `entware-armv7` | `v2` | nginx, btop (armv7sf-k3.2) | Entware GCC8/glibc 2.27 and GCC 15.2 musl ARMv7 *soft-float* |
 | `android` | `ndk-r27d` | Librera, Cryptomator, Android MuPDF | JDK 21, API 37, build-tools 37.0.0, NDK 27.2.12479018, CMake 3.22.1 |
 
@@ -62,8 +62,9 @@ tag (e.g. `v2`) for breaking toolchain updates, then update the default
 tag in `scripts/run.sh`. For strict reproducibility, record the published
 image digest alongside source SHAs before distributing artifacts.
 
-`images/entware-aarch64/Dockerfile` reuses the existing Maestro-derived
-nginx toolchain bootstrap, adding the GCC 15.2 musl compiler for btop.
+`images/entware-aarch64/Dockerfile` builds the Entware AArch64 nginx
+toolchain from the included `tools/nginx/upstream-builder.sh` script and adds
+the GCC 15.2 musl compiler for btop.
 `images/entware-armv7/Dockerfile` also builds Entware's **ARMv7** toolchain
 for nginx and installs the separate modern ARMv7 soft-float musl compiler for
 btop. Both use pinned release SHA-256 checksums from
