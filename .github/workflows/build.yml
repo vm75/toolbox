@@ -27,6 +27,11 @@ on:
         description: Optional exact nginx release (blank uses latest stable)
         required: false
         type: string
+      prepare_only:
+        description: Fetch upstream and check patches without compiling (useful for updating patches)
+        required: true
+        default: false
+        type: boolean
       publish_release:
         description: Publish GitHub Release after build succeeds (manual opt-in)
         required: true
@@ -146,6 +151,7 @@ jobs:
           TOOLBOX_MUPDF_REF: ${{ inputs.mupdf_ref }}
           TOOLBOX_NGINX_VERSION: ${{ inputs.nginx_version }}
           TOOLBOX_JOBS: '4'
+          TOOLBOX_PREPARE_ONLY: ${{ inputs.prepare_only && '1' || '0' }}
           SELECTED_TOOL: ${{ inputs.tool }}
           SELECTED_TARGET: ${{ inputs.target }}
           SELECTED_REF: ${{ inputs.upstream_ref }}
@@ -175,7 +181,7 @@ jobs:
           retention-days: 30
 
   release:
-    if: ${{ inputs.publish_release }}
+    if: ${{ inputs.publish_release && !inputs.prepare_only }}
     needs: build
     runs-on: ubuntu-24.04
     permissions:
