@@ -9,7 +9,7 @@ version="${version:-0.0.0}"
 if [[ "$TARGET" == router-aarch64 ]]; then
   # Cross-build GNU/Linux for Entware GLIBC 2.27; Alpine MUSL cannot be repackaged.
   command -v cargo
-  command -v zig
+  python3 -m ziglang version
   command -v cargo-zigbuild
   rustup target add aarch64-unknown-linux-gnu
   (cd "$SRC" && \

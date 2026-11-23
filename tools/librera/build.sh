@@ -7,6 +7,7 @@ export LIBRERA_ABIS="arm64-v8a"
 export LIBRERA_NATIVE_JOBS="${TOOLBOX_JOBS:-4}"
 cd "$SRC"
 bash Builder/link_to_mupdf_fork.sh
+./gradlew --no-daemon updateFDroid
 # The upstream fork's Gradle task produces an ARM64 and a universal F-Droid APK.
 ./gradlew --no-daemon :app:assembleFdroidRelease
 find app/build/outputs/apk/fdroid/release -name '*.apk' -exec cp -v {} "$OUT/" \;
