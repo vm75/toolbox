@@ -10,6 +10,13 @@ usage() {
 [[ $# -ge 2 && $# -le 3 ]] || usage
 TOOL="$1"; TARGET="$2"; REQUESTED_REF="${3:-}"
 [[ "$TOOL" =~ ^[a-z0-9-]+$ && "$TARGET" =~ ^[a-z0-9-]+$ ]] || usage
+# nginx uses signed nginx.org release tarballs rather than a Git checkout.
+# Interpret its upstream ref as an exact X.Y.Z version, or blank for latest stable.
+if [[ "$TOOL" == nginx && -n "$REQUESTED_REF" && ! "$REQUESTED_REF" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Invalid nginx upstream ref: expected an exact X.Y.Z version" >&2
+  exit 2
+fi
+export TOOLBOX_UPSTREAM_REF="$REQUESTED_REF"
 [[ -r "$ROOT/tools/$TOOL/tool.conf" ]] || { echo "Unknown tool: $TOOL" >&2; exit 2; }
 WORKSPACE="${TOOLBOX_WORKDIR:-$ROOT/.work}"
 OUT="${TOOLBOX_OUTPUT:-$ROOT/dist}"
