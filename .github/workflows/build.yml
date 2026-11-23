@@ -32,15 +32,11 @@ on:
           - wg-util / linux-arm64
           - wg-util / linux-armv7
       upstream_ref:
-        description: Optional upstream branch, tag or commit (blank uses tool default)
+        description: Optional upstream ref; nginx accepts X.Y.Z (blank uses latest stable)
         required: false
         type: string
       mupdf_ref:
         description: Optional MuPDF revision when building Librera
-        required: false
-        type: string
-      nginx_version:
-        description: Optional exact nginx release (blank uses latest stable)
         required: false
         type: string
       prepare_only:
@@ -53,11 +49,6 @@ on:
         required: true
         default: false
         type: boolean
-      builder_image_tag:
-        description: Optional GHCR builder image tag override (default is versioned per builder)
-        required: false
-        default: ''
-        type: string
 
 permissions:
   contents: read
@@ -202,10 +193,8 @@ jobs:
         shell: bash
         env:
           TOOLBOX_MUPDF_REF: ${{ inputs.mupdf_ref }}
-          TOOLBOX_NGINX_VERSION: ${{ inputs.nginx_version }}
           TOOLBOX_JOBS: '4'
           TOOLBOX_PREPARE_ONLY: ${{ inputs.prepare_only && '1' || '0' }}
-          TOOLBOX_BUILDER_TAG: ${{ inputs.builder_image_tag }}
           SELECTED_TOOL: ${{ steps.select.outputs.tool }}
           SELECTED_TARGET: ${{ steps.select.outputs.target }}
           SELECTED_REF: ${{ inputs.upstream_ref }}
