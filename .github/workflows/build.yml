@@ -158,7 +158,7 @@ jobs:
           SELECTED_TOOLCHAIN: ${{ inputs.toolchain_tag }}
         run: |
           set -euo pipefail
-          if [[ "$SELECTED_TARGET" == router-aarch64 && ( "$SELECTED_TOOL" == nginx || "$SELECTED_TOOL" == btop ) ]]; then
+          if [[ "$TOOLBOX_PREPARE_ONLY" != 1 && "$SELECTED_TARGET" == router-aarch64 && ( "$SELECTED_TOOL" == nginx || "$SELECTED_TOOL" == btop ) ]]; then
             image="ghcr.io/${GITHUB_REPOSITORY,,}/entware-aarch64-builder:$SELECTED_TOOLCHAIN"
             if docker pull "$image"; then
               docker run --rm --user builder -v "$GITHUB_WORKSPACE:/workspace" \
