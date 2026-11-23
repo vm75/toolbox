@@ -40,10 +40,35 @@ TOOLBOX_PREPARE_ONLY=1 bash scripts/build.sh mupdf android-arm64
 Delete `.work/` between runs; source trees must be fresh. Set
 `TOOLBOX_WORKDIR` and `TOOLBOX_OUTPUT` to move working files and outputs.
 
+
+### Customize the build dropdown
+
+To show only your frequently used combinations, edit the `options:` list under
+`on.workflow_dispatch.inputs.build` in
+[`.github/workflows/build.yml`](.github/workflows/build.yml). Remove any
+unwanted `- tool / target` lines and keep `default:` set to a listed option.
+For example, you could show only:
+
+```yaml
+        default: btop / entware-aarch64
+        type: choice
+        options:
+          - btop / entware-aarch64
+          - nginx / entware-aarch64
+          - vaultwarden / entware-armv7
+          - librera / android-arm64
+```
+
+The dropdown updates after committing the workflow file to `main`.
+This only changes the **visible choices**, not which targets the build scripts
+support. `scripts/test.sh` verifies the shortlist contains no invalid or
+duplicate combinations and that its default is listed. Builds remain manual-only.
+
 ## Supported targets
 
-Only listed combinations are supported; the Actions dropdown offers exactly
-these combinations and the build runner rejects all others.
+Only the following combinations are supported by the build recipes; the
+Actions dropdown may show a smaller user-selected shortlist. The build runner
+rejects unsupported combinations.
 
 | Tool | Target(s) | Source / special handling |
 | --- | --- | --- |
