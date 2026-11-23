@@ -15,6 +15,10 @@ The workflow downloads upstream, applies
 **No Actions build or release runs on push, PR, tag, release or a schedule.**
 The `publish_release` checkbox defaults to **false**. Publishing is a separate
 step inside the *manually dispatched* build after success.
+Use `upstream_ref` to select a tool revision; for nginx enter an exact release
+such as `1.28.0`, or leave blank for the latest stable release. `mupdf_ref`
+selects the MuPDF dependency independently when building Librera. Tool builds
+use the versioned builder image tags configured in `scripts/run.sh`.
 
 Before the first full nginx, btop or Android build, manually publish its builder
 image using **Actions → Build toolbox images → Run workflow**. Select
@@ -27,6 +31,7 @@ To run locally (requires the target's compiler/SDK):
 
 ```sh
 bash scripts/build.sh btop entware-aarch64
+bash scripts/build.sh nginx entware-aarch64 1.28.0
 bash scripts/build.sh librera android-arm64
 TOOLBOX_MUPDF_REF=1.28.5 bash scripts/build.sh librera android-arm64 10.0.7
 TOOLBOX_PREPARE_ONLY=1 bash scripts/build.sh mupdf android-arm64
