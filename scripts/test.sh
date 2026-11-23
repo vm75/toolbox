@@ -81,6 +81,15 @@ done
 grep -Fq 'tool=john' .github/workflows/build.yml || {
   echo "John the Ripper must map to the internal john recipe" >&2; exit 1;
 }
+# The user-facing build form has only one upstream ref and no image tag override.
+! grep -Eq 'nginx_version|builder_image_tag|TOOLBOX_NGINX_VERSION|TOOLBOX_BUILDER_TAG' \
+    .github/workflows/build.yml scripts/run.sh tools/nginx/build.sh || {
+  echo "Redundant nginx release or builder tag override remains" >&2; exit 1;
+}
+grep -Fq 'export TOOLBOX_UPSTREAM_REF="$REQUESTED_REF"' scripts/build.sh &&
+  grep -Fq -- '--version "$TOOLBOX_UPSTREAM_REF"' tools/nginx/build.sh || {
+  echo "Nginx release must be selected via the upstream ref" >&2; exit 1;
+}
 # Build jobs may use signing secrets, but must not appear as deployments.
 grep -Fq 'deployment: false' .github/workflows/build.yml || {
   echo "Tool builds must not create GitHub Deployments" >&2; exit 1;
@@ -95,6 +104,47 @@ old_target="router""-aarch64"
 # Smoke-test the opkg Architecture field for both Entware targets without building binaries.
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+# nginx is not a Git checkout: validate the shared ref as X.Y.Z even when
+# prepare_only avoids downloading source or building packages.
+TOOLBOX_PREPARE_ONLY=1 TOOLBOX_WORKDIR="$tmp/nginx-prepare" \
+  TOOLBOX_OUTPUT="$tmp/nginx-prepare-out" \
+  bash scripts/build.sh nginx entware-aarch64 1.28.0 >/dev/null
+if TOOLBOX_PREPARE_ONLY=1 TOOLBOX_WORKDIR="$tmp/nginx-invalid" \
+   TOOLBOX_OUTPUT="$tmp/nginx-invalid-out" \
+   bash scripts/build.sh nginx entware-aarch64 not-a-release >/dev/null 2>&1; then
+  echo "Invalid nginx upstream version was accepted" >&2; exit 1
+fi
+# Mock the expensive Entware package builder and check both version routes.
+mkdir -p "$tmp/mock-root/tools/nginx" "$tmp/mock-root/scripts" "$tmp/mock-out"
+cat > "$tmp/mock-root/tools/nginx/upstream-builder.sh" <<'MOCK_NGINX'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf '%s\n' "$@" > "$TOOLBOX_TEST_NGINX_ARGS"
+out=
+while (( $# )); do
+  if [[ "$1" == --output ]]; then out="$2"; shift 2; else shift; fi
+done
+mkdir -p "$out"
+touch "$out"/{nginx-ssl,nginx-mod-brotli,nginx-mod-stream,nginx-mod-headers-more}.ipk
+MOCK_NGINX
+printf 'exit 0\n' > "$tmp/mock-root/scripts/check-router-elf.sh"
+for ref in '' '1.28.0'; do
+  ROOT="$tmp/mock-root" WORKSPACE="$tmp/mock-work" OUT="$tmp/mock-out" \
+    TARGET=entware-aarch64 TOOLBOX_UPSTREAM_REF="$ref" \
+    TOOLBOX_TEST_NGINX_ARGS="$tmp/nginx-args" \
+    bash tools/nginx/build.sh
+  if [[ -n "$ref" ]]; then
+    grep -Fqx -- '--version' "$tmp/nginx-args" &&
+      grep -Fqx -- "$ref" "$tmp/nginx-args" || {
+      echo "Nginx did not receive the exact upstream release" >&2; exit 1;
+    }
+  else
+    grep -Fqx -- '--channel' "$tmp/nginx-args" &&
+      grep -Fqx -- 'stable' "$tmp/nginx-args" || {
+      echo "Nginx default did not select the stable channel" >&2; exit 1;
+    }
+  fi
+done
 mkdir -p "$tmp/stage/opt/bin"
 printf 'smoke-test\n' > "$tmp/stage/opt/bin/example"
 for target in entware-aarch64 entware-armv7; do
