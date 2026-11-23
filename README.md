@@ -1,5 +1,86 @@
-# Toolbox
+# toolbox
 
-On-demand upstream source builds with local patch stacks.
+Build personal tools from **clean upstream source** on demand. This repo stores
+small target-specific build recipes and at most one `custom.patch` per tool;
+it does **not** mirror or rebase upstream repositories. Inspired by
+[shenv](https://github.com/vm75/shenv) and the
+[Maestro nginx cross-builder](https://github.com/vm75/maestro).
 
-Implementation is prepared on a review branch; see the pull request for full instructions.
+## Quick start
+
+Use **Actions → Build toolbox tool → Run workflow**. Pick a tool and one of
+its supported targets. The workflow downloads upstream, applies
+`tools/<tool>/custom.patch` when present, builds and uploads artifacts.
+**No Actions build or release runs on push, PR, tag, release or a schedule.**
+The `publish_release` checkbox defaults to **false**. Publishing is a separate
+step inside the *manually dispatched* build after success.
+
+To run locally (requires the target's compiler/SDK):
+
+```sh
+bash scripts/build.sh btop router-aarch64
+bash scripts/build.sh librera android-arm64
+TOOLBOX_MUPDF_REF=1.28.5 bash scripts/build.sh librera android-arm64 10.0.7
+TOOLBOX_PREPARE_ONLY=1 bash scripts/build.sh mupdf android-arm64
+```
+
+Delete `.work/` between runs; source trees must be fresh. Set
+`TOOLBOX_WORKDIR` and `TOOLBOX_OUTPUT` to move working files and outputs.
+
+## Supported targets
+
+Only listed combinations are supported; the build runner rejects all others.
+
+| Tool | Target(s) | Source / special handling |
+| --- | --- | --- |
+| nginx | router-aarch64 | Maestro-derived Entware cross-builder; produces nginx and matching module IPKs |
+| btop | router-aarch64 | Latest upstream + Entware C++ cross-compiler; IPK |
+| vaultwarden | router-aarch64, linux-amd64, linux-arm64, linux-armv7 | Entware-compatible glibc build for router/IPK; upstream Docker build for other targets |
+| mupdf | linux-amd64, android-arm64 | Patched MuPDF; Android source prepared for dependent Librera native build |
+| librera | android-arm64 | Depends on patched MuPDF checkout; signed F-Droid APK |
+| busybox | windows-amd64 | MinGW BusyBox-w32 |
+| cryptomator | android-arm64 | Signed APK; original shenv patch |
+| rsync | linux-amd64 | Native source build |
+| john | linux-amd64 | John the Ripper jumbo source build |
+| wireguard | linux-amd64, linux-arm64, linux-armv7 | wireguard-go plus wg-util |
+| wg-util | linux-amd64, linux-arm64, linux-armv7 | Key utility from vm75/wg-util |
+| launcher | local only | Retained shenv helper; depends on user-local Windows compilers/tools |
+
+`router-aarch64` specifically means the **Entware aarch64-k3.10**
+environment used by Maestro, not generic Linux ARM64. IPK is generated for
+nginx, btop and Vaultwarden only; router binaries are checked for the AArch64
+ELF target, dynamic loader and glibc version before packaging. Cross-compiling
+does not replace testing on your router.
+
+## Upstream updates and patch failures
+
+A tool with no `custom.patch` builds upstream unmodified. MuPDF and Librera
+each have **one** independently versioned patch extracted from their respective
+forks, not from the obsolete `shenv/tools/librera` patch. When the new upstream
+revision cannot accept a patch, `git apply --check` exits nonzero and no build
+or release is published. Update that one patch locally; **no upstream fork
+push, rebase of published history, or automatic conflict resolution** is needed.
+See [patch maintenance](docs/patches.md).
+
+The patch stacks were extracted from the last published custom fork code.
+**Compatibility with November 2026 upstream tips and successful full builds
+have not yet been verified**. Until each target is validated, use explicit
+upstream revisions for repeatability and expect patch or upstream API changes
+to require code work.
+
+## Documentation
+
+- [Architecture and dependency flow](docs/architecture.md)
+- [Maintaining one patch per tool](docs/patches.md)
+- [Android signing keys and GitHub setup](docs/android-signing.md)
+- [Licenses and upstream notices](docs/licenses.md)
+- [AGENTS.md](AGENTS.md) for contributors and coding assistants
+
+## Security and release policy
+
+GitHub Actions is manual-only. Source pins are recorded in `dist/build-info.txt`,
+along with patch hashes, checksums and any packaged IPKs/APKs. The Entware
+toolchain image has a **separate manual-only** workflow and is optional: a
+router nginx/btop build can bootstrap a fresh toolchain instead. The repo
+contains no private signing keystore, user credentials or Google API keys.
+Store APK keys as encrypted Actions secrets and back them up offline.
