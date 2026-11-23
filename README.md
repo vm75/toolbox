@@ -2,8 +2,8 @@
 
 Build personal tools from **clean upstream source** on demand. This repo stores
 small target-specific build recipes and at most one `custom.patch` per tool;
-it does **not** mirror or rebase upstream repositories. The router nginx build is based on the
-[Maestro nginx cross-builder](https://github.com/vm75/maestro).
+it does **not** mirror or rebase upstream repositories. The router nginx
+cross-builder is maintained directly in `tools/nginx/upstream-builder.sh`.
 
 ## Quick start
 
