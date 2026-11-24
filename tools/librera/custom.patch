@@ -375,7 +375,7 @@ index 0000000..3058920
 +PY
 +echo "Native libraries: $OUTPUT/libs"
 diff --git a/app/build.gradle b/app/build.gradle
-index ac445c0..53e2657 100644
+index 3e53dca..7b2a5a0 100644
 --- a/app/build.gradle
 +++ b/app/build.gradle
 @@ -4,6 +4,39 @@ plugins {
@@ -434,7 +434,13 @@ index ac445c0..53e2657 100644
                      appName      : "Librera FD-JS",
                      appIcon      : "@mipmap/icon_pdf_pro",
                      appRoundIcon : "@mipmap/icon_pdf_pro",
-@@ -172,6 +207,7 @@ android {
+@@ -168,15 +203,18 @@ android {
+             ]
+             versionNameSuffix = '-fdroid-js'
+         }
++        // All flavors are configured even for F-Droid-only builds, so their
++        // unused Drive/AdMob credentials must be optional.
+         proJS {
              dimension = "version"
              applicationId = "com.foobnix.pro.pdf.reader"
              manifestPlaceholders = [
@@ -442,6 +448,123 @@ index ac445c0..53e2657 100644
                      appName      : "Librera PRO-JS",
                      appIcon      : "@mipmap/icon_pdf_pro",
                      appRoundIcon : "@mipmap/icon_pdf_pro",
+                     appWebClientId: project.findProperty("appWebClientId") ?: "",
+-                    appGdriveKey : pro_appGdriveKey,
++                    appGdriveKey : project.findProperty("pro_appGdriveKey") ?: "",
+                     admobAppId   : "",
+                     admobBannerId: "",
+                     admobFullId  : "",
+@@ -193,11 +231,11 @@ android {
+                     appIcon      : "@mipmap/icon_pdf_reader",
+                     appRoundIcon : "@mipmap/icon_pdf_reader",
+                     appWebClientId: project.findProperty("appWebClientId") ?: "",
+-                    appGdriveKey : librera_appGdriveKey,
+-                    admobAppId   : librera_admobAppId,
+-                    admobBannerId: librera_admobBannerId,
+-                    admobFullId  : librera_admobFullId,
+-                    admobRewardId  : librera_admobRewardId,
++                    appGdriveKey : project.findProperty("librera_appGdriveKey") ?: "",
++                    admobAppId   : project.findProperty("librera_admobAppId") ?: "",
++                    admobBannerId: project.findProperty("librera_admobBannerId") ?: "",
++                    admobFullId  : project.findProperty("librera_admobFullId") ?: "",
++                    admobRewardId  : project.findProperty("librera_admobRewardId") ?: "",
+                     appSafeMode  : "false"
+             ]
+         }
+@@ -210,7 +248,7 @@ android {
+                     appIcon      : "@mipmap/icon_pdf_pro",
+                     appRoundIcon : "@mipmap/icon_pdf_pro",
+                     appWebClientId: project.findProperty("appWebClientId") ?: "",
+-                    appGdriveKey : pro_appGdriveKey,
++                    appGdriveKey : project.findProperty("pro_appGdriveKey") ?: "",
+                     admobAppId   : "",
+                     admobBannerId: "",
+                     admobFullId  : "",
+@@ -226,11 +264,11 @@ android {
+                     appIcon      : "@mipmap/icon_pdf_classic",
+                     appRoundIcon : "@mipmap/launcher_classic",
+                     appWebClientId: project.findProperty("appWebClientId") ?: "",
+-                    appGdriveKey : pdf_classic_appGdriveKey,
+-                    admobAppId   : pdf_classic_admobAppId,
+-                    admobBannerId: pdf_classic_admobBannerId,
+-                    admobFullId  : pdf_classic_admobFullId,
+-                    admobRewardId: pdf_classic_admobRewardId,
++                    appGdriveKey : project.findProperty("pdf_classic_appGdriveKey") ?: "",
++                    admobAppId   : project.findProperty("pdf_classic_admobAppId") ?: "",
++                    admobBannerId: project.findProperty("pdf_classic_admobBannerId") ?: "",
++                    admobFullId  : project.findProperty("pdf_classic_admobFullId") ?: "",
++                    admobRewardId: project.findProperty("pdf_classic_admobRewardId") ?: "",
+                     appSafeMode  : "true"
+             ]
+         }
+@@ -242,11 +280,11 @@ android {
+                     appIcon      : "@mipmap/icon_pdf_droid",
+                     appRoundIcon : "@mipmap/launcher_droid",
+                     appWebClientId: project.findProperty("appWebClientId") ?: "",
+-                    appGdriveKey : ebooka_appGdriveKey,
+-                    admobAppId   : ebooka_admobAppId,
+-                    admobBannerId: ebooka_admobBannerId,
+-                    admobFullId  : ebooka_admobFullId,
+-                    admobRewardId: ebooka_admobRewardId,
++                    appGdriveKey : project.findProperty("ebooka_appGdriveKey") ?: "",
++                    admobAppId   : project.findProperty("ebooka_admobAppId") ?: "",
++                    admobBannerId: project.findProperty("ebooka_admobBannerId") ?: "",
++                    admobFullId  : project.findProperty("ebooka_admobFullId") ?: "",
++                    admobRewardId: project.findProperty("ebooka_admobRewardId") ?: "",
+                     appSafeMode  : "false"
+             ]
+         }
+@@ -258,11 +296,11 @@ android {
+                     appIcon      : "@mipmap/icon_pdf_2",
+                     appRoundIcon : "@mipmap/launcher_pdf_v2",
+                     appWebClientId: project.findProperty("appWebClientId") ?: "",
+-                    appGdriveKey : pdf_v2_appGdriveKey,
+-                    admobAppId   : pdf_v2_admobAppId,
+-                    admobBannerId: pdf_v2_admobBannerId,
+-                    admobFullId  : pdf_v2_admobFullId,
+-                    admobRewardId: pdf_v2_admobRewardId,
++                    appGdriveKey : project.findProperty("pdf_v2_appGdriveKey") ?: "",
++                    admobAppId   : project.findProperty("pdf_v2_admobAppId") ?: "",
++                    admobBannerId: project.findProperty("pdf_v2_admobBannerId") ?: "",
++                    admobFullId  : project.findProperty("pdf_v2_admobFullId") ?: "",
++                    admobRewardId: project.findProperty("pdf_v2_admobRewardId") ?: "",
+                     appSafeMode  : "false"
+             ]
+         }
+@@ -274,11 +312,11 @@ android {
+                     appIcon      : "@mipmap/icon_tts_reader_app",
+                     appRoundIcon : "@mipmap/launcher_tts_reader_app",
+                     appWebClientId: project.findProperty("appWebClientId") ?: "",
+-                    appGdriveKey : tts_reader_appGdriveKey,
+-                    admobAppId   : tts_reader_admobAppId,
+-                    admobBannerId: tts_reader_admobBannerId,
+-                    admobFullId  : tts_reader_admobFullId,
+-                    admobRewardId: tts_reader_admobRewardId,
++                    appGdriveKey : project.findProperty("tts_reader_appGdriveKey") ?: "",
++                    admobAppId   : project.findProperty("tts_reader_admobAppId") ?: "",
++                    admobBannerId: project.findProperty("tts_reader_admobBannerId") ?: "",
++                    admobFullId  : project.findProperty("tts_reader_admobFullId") ?: "",
++                    admobRewardId: project.findProperty("tts_reader_admobRewardId") ?: "",
+                     appSafeMode  : "false"
+             ]
+         }
+@@ -290,11 +328,11 @@ android {
+                     appIcon      : "@mipmap/icon_epub_reader",
+                     appRoundIcon : "@mipmap/launcher_epub_reader",
+                     appWebClientId: project.findProperty("appWebClientId") ?: "",
+-                    appGdriveKey : epub_reader_appGdriveKey,
+-                    admobAppId   : epub_reader_admobAppId,
+-                    admobBannerId: epub_reader_admobBannerId,
+-                    admobFullId  : epub_reader_admobFullId,
+-                    admobRewardId: epub_reader_admobRewardId,
++                    appGdriveKey : project.findProperty("epub_reader_appGdriveKey") ?: "",
++                    admobAppId   : project.findProperty("epub_reader_admobAppId") ?: "",
++                    admobBannerId: project.findProperty("epub_reader_admobBannerId") ?: "",
++                    admobFullId  : project.findProperty("epub_reader_admobFullId") ?: "",
++                    admobRewardId: project.findProperty("epub_reader_admobRewardId") ?: "",
+                     appSafeMode  : "false"
+             ]
+         }
 diff --git a/app/src/androidTest/assets/native-images/README.md b/app/src/androidTest/assets/native-images/README.md
 new file mode 100644
 index 0000000..bede386
