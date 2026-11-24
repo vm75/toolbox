@@ -295,8 +295,23 @@ jobs:
           [[ "$actual" == "$GITHUB_SHA" ]] || {
             echo "::error::Reserved release tag no longer points to the build commit" >&2; exit 1;
           }
-          case "$SELECTED_TOOL" in
-            cryptomator|librera)
+          case "$SELECTED_TARGET:$SELECTED_TOOL" in
+            entware-aarch64:*|entware-armv7:*)
+              # Publish installable packages directly, including nginx module IPKs.
+              mapfile -d '' -t assets < <(find dist -type f -name '*.ipk' -print0 | sort -z)
+              if (( ${#assets[@]} == 0 )); then
+                echo "::error::No IPKs found in the Entware build artifact" >&2
+                exit 1
+              fi
+              # Release downloads are flat, unlike the build artifact directory.
+              # Generate checksums for the files actually attached to the release.
+              assets+=(dist/build-info.txt)
+              for asset in "${assets[@]}"; do
+                (cd "$(dirname "$asset")" && sha256sum -- "$(basename "$asset")")
+              done > "$RUNNER_TEMP/SHA256SUMS"
+              assets+=("$RUNNER_TEMP/SHA256SUMS")
+              ;;
+            android-arm64:cryptomator|android-arm64:librera)
               # Publish each signed APK directly for installation on Android.
               mapfile -d '' -t assets < <(find dist -type f -name '*.apk' -print0 | sort -z)
               if (( ${#assets[@]} == 0 )); then
@@ -307,8 +322,7 @@ jobs:
               ;;
             *)
               tar -C dist -czf "$RUNNER_TEMP/$tag.tar.gz" .
-              mapfile -d '' -t ipks < <(find dist -type f -name '*.ipk' -print0)
-              assets=("$RUNNER_TEMP/$tag.tar.gz" "${ipks[@]}")
+              assets=("$RUNNER_TEMP/$tag.tar.gz")
               ;;
           esac
           gh release create "$tag" "${assets[@]}" \
