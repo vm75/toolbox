@@ -40,3 +40,17 @@ diff --git a/presentation/build.gradle b/presentation/build.gradle
  
  			crunchPngs false
  			minifyEnabled false
+diff --git a/util/src/main/java/org/cryptomator/util/FlavorConfig.kt b/util/src/main/java/org/cryptomator/util/FlavorConfig.kt
+--- a/util/src/main/java/org/cryptomator/util/FlavorConfig.kt
++++ b/util/src/main/java/org/cryptomator/util/FlavorConfig.kt
+@@ -2,8 +2,8 @@
+ 
+ object FlavorConfig {
+ 
+-	/** The premium (paid) Play Store edition ships with full access, so license enforcement is bypassed. */
++	/** Full access for the upstream premium edition and this self-built APK Store edition. */
+-	val isPremiumFlavor: Boolean = BuildConfig.FLAVOR == "playstore"
++	val isPremiumFlavor: Boolean = BuildConfig.FLAVOR == "playstore" || BuildConfig.FLAVOR == "apkstore"
+ 
+ 	/** The freemium IAP (in-app purchase) flavor distributed on Google Play. */
+ 	val isFreemiumFlavor: Boolean = BuildConfig.FLAVOR == "playstoreiap"
