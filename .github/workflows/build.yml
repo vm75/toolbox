@@ -47,9 +47,9 @@ on:
         default: false
         type: boolean
       publish_release:
-        description: Publish GitHub Release after build succeeds (manual opt-in)
+        description: Publish GitHub Release after build succeeds (uncheck to skip)
         required: true
-        default: false
+        default: true
         type: boolean
 
 permissions:

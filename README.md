@@ -13,8 +13,8 @@ filter a second dropdown dynamically, so only valid combinations are listed.
 The workflow downloads upstream, applies
 `tools/<tool>/custom.patch` when present, builds and uploads artifacts.
 **No Actions build or release runs on push, PR, tag, release or a schedule.**
-The `publish_release` checkbox defaults to **false**. Publishing is a separate
-step inside the *manually dispatched* build after success.
+The `publish_release` checkbox defaults to **true**; uncheck it to skip publishing.
+Publishing is a separate step inside the *manually dispatched* build after success.
 Use `upstream_ref` to select a tool revision; for nginx enter an exact release
 such as `1.28.0`, or leave blank for the latest stable release. `mupdf_ref`
 selects the MuPDF dependency independently when building Librera. Cryptomator and Librera

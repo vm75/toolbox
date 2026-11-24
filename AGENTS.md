@@ -14,7 +14,7 @@ registry, generalized CI framework, or all-platform build farm.
 - `tools/<tool>/tool.conf`: trusted source URL, ref, allowed target list, dependencies
 - `tools/<tool>/build.sh`: only commands needed for that particular tool
 - `tools/<tool>/custom.patch`: **one optional patch** relative to clean upstream
-- `.github/workflows/`: **workflow_dispatch ONLY**, release opt-in
+- `.github/workflows/`: **workflow_dispatch ONLY**, release enabled by default
 
 ## Rules
 
@@ -25,7 +25,7 @@ registry, generalized CI framework, or all-platform build farm.
 4. Stop immediately on patch failure or incompatible router ELF; never suppress errors.
 5. For Librera, prepare patched MuPDF first and pass its path as LIBRERA_MUPDF_DIR.
 6. No automatic build, tag, push, cron, PR or release triggers. Release publishing
-   must remain a manual opt-in and run only after a successful build.
+   must remain configurable per manual dispatch and run only after a successful build.
 7. Never commit keystores, private keys, Google service credentials or tokens.
    Secrets for signed APK builds belong in the GitHub `android-signing`
    environment, never in the repository or builder images.
