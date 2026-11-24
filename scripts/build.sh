@@ -57,7 +57,13 @@ prepare() {
   if [[ -n "$url" ]]; then
     [[ ! -e "$src" ]] || { echo "Source directory must be fresh: $src" >&2; exit 1; }
     ref="${ref:-$default_ref}"
-    if [[ "$name" == librera && "$ref" == latest-stable ]]; then
+    if [[ "$ref" == latest-stable ]]; then
+      local release_repo
+      case "$name" in
+        cryptomator) release_repo=cryptomator/android ;;
+        librera) release_repo=foobnix/LibreraReader ;;
+        *) echo "No latest-stable release resolver for $name" >&2; exit 1 ;;
+      esac
       local auth_header=()
       local token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
       if [[ -n "$token" ]]; then
@@ -67,7 +73,7 @@ prepare() {
       release_json="$(curl -fsSL --retry 3 "${auth_header[@]}" \
         -H "Accept: application/vnd.github+json" \
         -H "User-Agent: toolbox-build" \
-        https://api.github.com/repos/foobnix/LibreraReader/releases/latest 2>/dev/null)" || true
+        "https://api.github.com/repos/$release_repo/releases/latest" 2>/dev/null)" || true
       if [[ -n "$release_json" ]]; then
         ref="$(printf '%s\n' "$release_json" | python3 -c 'import json, sys
 try:
@@ -76,15 +82,16 @@ except Exception as e:
     sys.exit("Failed to parse GitHub release JSON: " + str(e))
 tag = release.get("tag_name")
 if release.get("draft") or release.get("prerelease") or not isinstance(tag, str) or not tag:
-    sys.exit("No stable Librera release tag returned by GitHub")
+    sys.exit("No stable release tag returned by GitHub")
 print("refs/tags/" + tag)')"
       else
         local latest_tag
         latest_tag="$(git ls-remote --tags --refs "$url" | cut -d/ -f3- | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -n 1)"
         if [[ -n "$latest_tag" ]]; then
+          echo "::warning::GitHub release API unavailable; using highest numeric upstream tag for $name: $latest_tag" >&2
           ref="refs/tags/$latest_tag"
         else
-          echo "Failed to resolve latest stable Librera release from GitHub API or git remote" >&2
+          echo "Failed to resolve latest stable release for $name from GitHub API or git remote" >&2
           exit 1
         fi
       fi
@@ -96,6 +103,13 @@ print("refs/tags/" + tag)')"
     git -C "$src" checkout -q --detach FETCH_HEAD
     sha="$(git -C "$src" rev-parse HEAD)"
     echo "$name upstream $sha ($ref)"
+    if [[ "$name" == "$TOOL" && ( "$name" == cryptomator || "$name" == librera ) ]]; then
+      # Use the selected tag/ref, never Gradle's version or the workflow run ID.
+      local version="${ref#refs/tags/}"
+      version="${version#refs/heads/}"
+      export APK_VERSION="$(printf '%s' "$version" | tr -c 'A-Za-z0-9._-' '-')"
+      [[ -n "$APK_VERSION" ]] || { echo "Empty APK version" >&2; exit 1; }
+    fi
     patch="$ROOT/tools/$name/custom.patch"
     if [[ -s "$patch" ]]; then
       echo "Checking $patch"

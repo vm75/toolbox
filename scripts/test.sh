@@ -105,7 +105,7 @@ old_target="router""-aarch64"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 # Exercise release selection with a local upstream and no network access.
-mkdir -p "$tmp/release-root/scripts" "$tmp/release-root/tools/librera" "$tmp/release-bin"
+mkdir -p "$tmp/release-root/scripts" "$tmp/release-root/tools/"{librera,cryptomator} "$tmp/release-bin"
 cp scripts/build.sh "$tmp/release-root/scripts/"
 git init -q "$tmp/release-upstream"
 git -C "$tmp/release-upstream" -c user.name=Test -c user.email=test@example.invalid \
@@ -118,6 +118,14 @@ SOURCE_REF="latest-stable"
 TARGETS="android-arm64"
 DEPS=""
 CONF
+cp "$tmp/release-root/tools/librera/tool.conf" "$tmp/release-root/tools/cryptomator/tool.conf"
+for tool in librera cryptomator; do
+  cat > "$tmp/release-root/tools/$tool/build.sh" <<'MOCK_ANDROID'
+#!/usr/bin/env bash
+set -euo pipefail
+touch "$OUT/$TOOL-$APK_VERSION.apk"
+MOCK_ANDROID
+done
 cat > "$tmp/release-bin/curl" <<'MOCK_RELEASE'
 #!/usr/bin/env bash
 if [[ -n "${TOOLBOX_TEST_CURL_FAIL:-}" ]]; then
@@ -128,14 +136,17 @@ cat "$TOOLBOX_TEST_RELEASE_JSON"
 MOCK_RELEASE
 chmod +x "$tmp/release-bin/curl"
 printf '%s\n' '{"tag_name":"stable-fixture","draft":false,"prerelease":false}' > "$tmp/release.json"
-for ref in '' explicit-fixture; do
-  run="${ref:-default}"
-  PATH="$tmp/release-bin:$PATH" TOOLBOX_TEST_RELEASE_JSON="$tmp/release.json" \
-    TOOLBOX_PREPARE_ONLY=1 TOOLBOX_WORKDIR="$tmp/release-$run" \
-    TOOLBOX_OUTPUT="$tmp/release-out-$run" \
-    bash "$tmp/release-root/scripts/build.sh" librera android-arm64 "$ref" >/dev/null
-  expected="${ref:-refs/tags/stable-fixture}"
-  grep -Fqx "librera source_ref $expected" "$tmp/release-out-$run/build-info.txt"
+for tool in librera cryptomator; do
+  for ref in '' explicit-fixture; do
+    run="$tool-${ref:-default}"
+    PATH="$tmp/release-bin:$PATH" TOOLBOX_TEST_RELEASE_JSON="$tmp/release.json" \
+      TOOLBOX_WORKDIR="$tmp/release-$run" \
+      TOOLBOX_OUTPUT="$tmp/release-out-$run" \
+      bash "$tmp/release-root/scripts/build.sh" "$tool" android-arm64 "$ref" >/dev/null
+    expected="${ref:-refs/tags/stable-fixture}"
+    grep -Fqx "$tool source_ref $expected" "$tmp/release-out-$run/build-info.txt"
+    [[ -f "$tmp/release-out-$run/$tool-${expected#refs/tags/}.apk" ]]
+  done
 done
 # Test fallback to git remote tags when GitHub API returns HTTP 403 or fails.
 git -C "$tmp/release-upstream" tag 10.1.14

@@ -17,8 +17,12 @@ The `publish_release` checkbox defaults to **false**. Publishing is a separate
 step inside the *manually dispatched* build after success.
 Use `upstream_ref` to select a tool revision; for nginx enter an exact release
 such as `1.28.0`, or leave blank for the latest stable release. `mupdf_ref`
-selects the MuPDF dependency independently when building Librera. Librera defaults
-to GitHub's latest stable release; an explicit `upstream_ref` overrides it. Tool builds
+selects the MuPDF dependency independently when building Librera. Cryptomator and Librera
+both default to GitHub's latest stable release; an explicit `upstream_ref` overrides it.
+APK names include the resolved upstream tag/ref, for example `cryptomator-3.0.0.apk`,
+`librera-10.1.14-arm64.apk` and `librera-10.1.14-universal.apk`.
+If the release API is unavailable, the resolver warns and uses the highest numeric
+upstream tag (which may not have a published GitHub Release). Tool builds
 use the versioned builder image tags configured in `scripts/run.sh`.
 
 Before the first full nginx, btop or Android build, manually publish its builder

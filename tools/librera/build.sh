@@ -10,5 +10,15 @@ bash Builder/link_to_mupdf_fork.sh
 ./gradlew --no-daemon updateFDroid
 # The upstream fork's Gradle task produces an ARM64 and a universal F-Droid APK.
 ./gradlew --no-daemon :app:assembleFdroidRelease
-find app/build/outputs/apk/fdroid/release -name '*.apk' -exec cp -v {} "$OUT/" \;
-find "$OUT" -maxdepth 1 -name '*.apk' | grep -q .
+mapfile -d '' -t apks < <(find app/build/outputs/apk/fdroid/release -type f -name '*.apk' -print0)
+(( ${#apks[@]} > 0 )) || { echo "No Librera F-Droid release APKs found" >&2; exit 1; }
+for apk in "${apks[@]}"; do
+  case "${apk##*/}" in
+    *-arm64.apk|*-arm64-v8a.apk|*-arm64-v8a-*.apk) variant=arm64 ;;
+    *-uni.apk|*-universal.apk|*-universal-*.apk) variant=universal ;;
+    *) variant="$(printf '%s' "${apk##*/}" | tr -c 'A-Za-z0-9._-' '-')"; variant="${variant%.apk}" ;;
+  esac
+  dest="$OUT/librera-${APK_VERSION:?missing upstream APK version}-$variant.apk"
+  [[ ! -e "$dest" ]] || { echo "Duplicate Librera APK name: $dest" >&2; exit 1; }
+  cp -v -- "$apk" "$dest"
+done
