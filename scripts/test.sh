@@ -103,6 +103,42 @@ old_target="router""-aarch64"
 # Smoke-test the opkg Architecture field for both Entware targets without building binaries.
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+# Exercise release selection with a local upstream and no network access.
+mkdir -p "$tmp/release-root/scripts" "$tmp/release-root/tools/librera" "$tmp/release-bin"
+cp scripts/build.sh "$tmp/release-root/scripts/"
+git init -q "$tmp/release-upstream"
+git -C "$tmp/release-upstream" -c user.name=Test -c user.email=test@example.invalid \
+  commit -qm fixture --allow-empty
+git -C "$tmp/release-upstream" tag stable-fixture
+git -C "$tmp/release-upstream" tag explicit-fixture
+cat > "$tmp/release-root/tools/librera/tool.conf" <<CONF
+SOURCE_URL="$tmp/release-upstream"
+SOURCE_REF="latest-stable"
+TARGETS="android-arm64"
+DEPS=""
+CONF
+cat > "$tmp/release-bin/curl" <<'MOCK_RELEASE'
+#!/usr/bin/env bash
+cat "$TOOLBOX_TEST_RELEASE_JSON"
+MOCK_RELEASE
+chmod +x "$tmp/release-bin/curl"
+printf '%s\n' '{"tag_name":"stable-fixture","draft":false,"prerelease":false}' > "$tmp/release.json"
+for ref in '' explicit-fixture; do
+  run="${ref:-default}"
+  PATH="$tmp/release-bin:$PATH" TOOLBOX_TEST_RELEASE_JSON="$tmp/release.json" \
+    TOOLBOX_PREPARE_ONLY=1 TOOLBOX_WORKDIR="$tmp/release-$run" \
+    TOOLBOX_OUTPUT="$tmp/release-out-$run" \
+    bash "$tmp/release-root/scripts/build.sh" librera android-arm64 "$ref" >/dev/null
+  expected="${ref:-refs/tags/stable-fixture}"
+  grep -Fqx "librera source_ref $expected" "$tmp/release-out-$run/build-info.txt"
+done
+printf '%s\n' '{"tag_name":"preview","prerelease":true}' > "$tmp/release.json"
+if PATH="$tmp/release-bin:$PATH" TOOLBOX_TEST_RELEASE_JSON="$tmp/release.json" \
+    TOOLBOX_PREPARE_ONLY=1 TOOLBOX_WORKDIR="$tmp/release-preview" \
+    TOOLBOX_OUTPUT="$tmp/release-out-preview" \
+    bash "$tmp/release-root/scripts/build.sh" librera android-arm64 >/dev/null 2>&1; then
+  echo "Librera accepted a prerelease as latest stable" >&2; exit 1
+fi
 # nginx is not a Git checkout: validate the shared ref as X.Y.Z even when
 # prepare_only avoids downloading source or building packages.
 TOOLBOX_PREPARE_ONLY=1 TOOLBOX_WORKDIR="$tmp/nginx-prepare" \

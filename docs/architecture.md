@@ -55,7 +55,9 @@ and `DEPS`. The runner exports `ROOT`, `WORKSPACE`, `SRC`, `OUT`,
 Librera's dependency ref. The common upstream ref is exported as
 `TOOLBOX_UPSTREAM_REF`; for nginx it selects an exact signed X.Y.Z source
 release, while an empty ref selects the latest stable release. Other tools
-accept Git branches, tags or commits. Prefer exact refs over floating branches
+accept Git branches, tags or commits. Librera's `latest-stable` default resolves
+GitHub's latest non-prerelease release tag at build time; explicit refs override
+it. The resolved ref and commit are recorded in `build-info.txt`. Use exact refs
 for reproducibility.
 
 There is one optional `custom.patch` for each project. It is applied once

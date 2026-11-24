@@ -1,5 +1,5 @@
 diff --git a/.gitignore b/.gitignore
-index b7e4f3913312..15a60f0cd859 100644
+index 5daaf6a..5b5913c 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -9,6 +9,7 @@
@@ -9,37 +9,35 @@ index b7e4f3913312..15a60f0cd859 100644
 +/app/src/main/jniLibs/
  /docs/.jekyll-cache/
  /Builder/bin/
- /smartreflow/bin/
+ /pro/bin/
 diff --git a/Builder/all-release.sh b/Builder/all-release.sh
-index a8b6fbe17237..420ed351b6e2 100755
+index 779e5ae..9b7b4e8 100755
 --- a/Builder/all-release.sh
 +++ b/Builder/all-release.sh
-@@ -1,11 +1,10 @@
+@@ -1,10 +1,10 @@
  #!/usr/bin/env bash
  
--# The whole release, built on one MuPDF: ./all-release.sh 1.28.5
--# (or through all-release-1.23.7.sh / all-release-1.28.5.sh). The MuPDF version goes into the
--# names of the APKs, bundles, mappings and native symbols, so both releases sit side by side.
--MUPDF=$1
--if [ -z "$MUPDF" ] || [ ! -f "./link_to_mupdf_$MUPDF.sh" ]; then
--  echo "Usage: $0 <mupdf version>, one of:" $(ls link_to_mupdf_*.sh | sed 's/link_to_mupdf_//; s/\.sh//')
+-# The whole release, built on the MuPDF there is a link script for: ./all-release.sh 1.28.5
+-# (or through all-release-1.28.5.sh). The MuPDF version is written beside the builds.
+-MUPDF=${1:-1.28.5}
 +# Build against the configured vm75/mupdf checkout. Select revisions in that
 +# checkout; Builder/build/mupdf-fork/build.json records its revision and codecs.
 +MUPDF=${1:-fork}
-+if [ ! -f "./link_to_mupdf_$MUPDF.sh" ]; then
+ if [ ! -f "./link_to_mupdf_$MUPDF.sh" ]; then
+-  echo "Usage: $0 <mupdf version>, one of:" $(ls link_to_mupdf_*.sh | sed 's/link_to_mupdf_//; s/\.sh//')
 +  echo "Unknown MuPDF build: $MUPDF" >&2
    exit 1
  fi
  
-@@ -25,6 +24,7 @@ fi
+@@ -24,7 +24,6 @@ fi
  ####################################
  
  ./link_to_mupdf_$MUPDF.sh || exit 1
-+./build-nomupdf.sh "$MUPDF" || exit 1
- 
+-
  cd ../
  
-@@ -91,9 +91,13 @@ else
+ # One gradle run at a time, and nothing is built until the raised version is on disk.
+@@ -94,9 +93,14 @@ else
    OBJCOPY="$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-objcopy"
  fi
  SYMBOLS=$(mktemp -d)
@@ -49,82 +47,38 @@ index a8b6fbe17237..420ed351b6e2 100755
 +fi
  for ABI in armeabi-v7a arm64-v8a x86 x86_64; do
    mkdir -p "$SYMBOLS/$ABI"
--  "$OBJCOPY" --only-keep-debug Builder/mupdf-$MUPDF/platform/librera/obj/local/$ABI/libMuPDF.so "$SYMBOLS/$ABI/libMuPDF.so.dbg" || exit 1
-+  "$OBJCOPY" --only-keep-debug "$NATIVE_OBJ/$ABI/libMuPDF.so" "$SYMBOLS/$ABI/libMuPDF.so.dbg" || exit 1
+-  for LIB in Builder/mupdf-$MUPDF/platform/librera/obj/local/$ABI/*.so; do
++  for LIB in "$NATIVE_OBJ"/$ABI/*.so; do
++    [ -f "$LIB" ] || continue
+     "$OBJCOPY" --only-keep-debug "$LIB" "$SYMBOLS/$ABI/$(basename "$LIB").dbg" || exit 1
+   done
  done
- SYMBOLS_ZIP="Librera-$VERSION-mupdf$MUPDF-native-debug-symbols.zip"
- for D in "${RELEASE_DIRS[@]}"; do
 diff --git a/Builder/build-librera-beta.sh b/Builder/build-librera-beta.sh
-index c0e2fe666899..65265357bee1 100755
+index 51defa6..509e705 100755
 --- a/Builder/build-librera-beta.sh
 +++ b/Builder/build-librera-beta.sh
 @@ -32,11 +32,10 @@ else
  fi
  
  
--# The betas of every MuPDF: ./all-beta.sh, or ./all-beta.sh 1.28.5 for one of them. The version
+-# The betas of every MuPDF: ./all-beta.sh, or ./all-beta.sh 1.28.6 for one of them. The version
 -# goes into the names of the APKs and the bundles (-Pmupdf), so the betas sit side by side.
 +# Betas use the configured vm75/mupdf checkout, including its pinned codecs.
  MUPDF_VERSIONS=("$@")
  if [ ${#MUPDF_VERSIONS[@]} -eq 0 ]; then
--  MUPDF_VERSIONS=(1.28.5)
+-  MUPDF_VERSIONS=(1.28.6)
 +  MUPDF_VERSIONS=(fork)
  fi
  for MUPDF in "${MUPDF_VERSIONS[@]}"; do
    if [ ! -f "./link_to_mupdf_$MUPDF.sh" ]; then
-diff --git a/Builder/build-nomupdf.sh b/Builder/build-nomupdf.sh
-index 0f059fdcc63a..7abe6242fff3 100755
---- a/Builder/build-nomupdf.sh
-+++ b/Builder/build-nomupdf.sh
-@@ -19,7 +19,40 @@ set -e
- BUILD_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
- cd "$BUILD_DIR"
- 
--VERSION_TAG="${1:-1.28.5}"
-+VERSION_TAG="${1:-fork}"
-+if [ "$VERSION_TAG" = fork ]; then
-+    GRADLE_PROPERTIES="${GRADLE_USER_HOME:-$HOME/.gradle}/gradle.properties"
-+    property() {
-+        if [ -f "$GRADLE_PROPERTIES" ]; then
-+            sed -n "s/^$1=//p" "$GRADLE_PROPERTIES" | tail -n 1
-+        fi
-+    }
-+    MUPDF_ROOT="${LIBRERA_MUPDF_DIR:-$(property librera_mupdf_dir)}"
-+    MUPDF_ROOT="${MUPDF_ROOT:-$(dirname "$(dirname "$BUILD_DIR")")/mupdf}"
-+    NDK_DIR="${LIBRERA_NDK_DIR:-${ANDROID_NDK_HOME:-$(property librera_ndk_dir)}}"
-+    if [ ! -x "$NDK_DIR/ndk-build" ]; then
-+        echo "Set LIBRERA_NDK_DIR, ANDROID_NDK_HOME, or librera_ndk_dir" >&2
-+        exit 1
-+    fi
-+    OUTPUT="$BUILD_DIR/build/nomupdf-fork"
-+    "$NDK_DIR/ndk-build" -j"${LIBRERA_NATIVE_JOBS:-4}" \
-+        NDK_PROJECT_PATH="$(dirname "$BUILD_DIR")" \
-+        APP_BUILD_SCRIPT="$BUILD_DIR/jni/Android-nomupdf.mk" \
-+        NDK_APPLICATION_MK="$BUILD_DIR/jni/Application.mk" \
-+        LIBRERA_MUPDF_ROOT="$MUPDF_ROOT" APP_PLATFORM=android-24 \
-+        "APP_ABI=${LIBRERA_ABIS:-armeabi-v7a arm64-v8a x86 x86_64}" \
-+        NDK_OUT="$OUTPUT/obj" NDK_LIBS_OUT="$OUTPUT/libs"
-+    LIBS="$BUILD_DIR/../app/src/noMupdf/jniLibs"
-+    mkdir -p "$LIBS"
-+    for ABI in ${LIBRERA_ABIS:-armeabi-v7a arm64-v8a x86 x86_64}; do
-+        if [ -d "$LIBS/$ABI" ] && [ ! -L "$LIBS/$ABI" ]; then
-+            cp "$OUTPUT/libs/$ABI/libLibreraDocs.so" "$LIBS/$ABI/"
-+        else
-+            ln -sfn "../../../../Builder/build/nomupdf-fork/libs/$ABI" "$LIBS/$ABI"
-+        fi
-+    done
-+    exit 0
-+fi
- MUPDF_JAVA="$BUILD_DIR/mupdf-$VERSION_TAG/platform/librera"
- LIBS="$BUILD_DIR/../app/src/noMupdf/jniLibs"
- 
 diff --git a/Builder/jni/Android-fork.mk b/Builder/jni/Android-fork.mk
 new file mode 100644
-index 000000000000..47dbad1b55af
+index 0000000..66a8030
 --- /dev/null
 +++ b/Builder/jni/Android-fork.mk
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,53 @@
 +LOCAL_PATH := $(call my-dir)
++TOP_LOCAL_PATH := $(LOCAL_PATH)
 +LIBRERA_JNI_PATH := $(LOCAL_PATH)
 +LIBRERA_MUPDF_ROOT ?= $(abspath $(LIBRERA_JNI_PATH)/../../../mupdf)
 +
@@ -133,51 +87,56 @@ index 000000000000..47dbad1b55af
 +include $(LIBRERA_MUPDF_ROOT)/platform/java/Android.mk
 +
 +MUPDF_ROOT := $(LIBRERA_MUPDF_ROOT)
-+include $(LIBRERA_JNI_PATH)/libmobi-0.12/Android.mk
-+include $(LIBRERA_JNI_PATH)/libhqx-1.2/Android.mk
-+include $(LIBRERA_JNI_PATH)/libdjvu-3.5.28/Android.mk
-+include $(LIBRERA_JNI_PATH)/libantiword-1.3.1/Android.mk
-+include $(LIBRERA_JNI_PATH)/liblame-1.0.9/Android.mk
++include $(TOP_LOCAL_PATH)/libmobi-0.12/Android.mk
++include $(TOP_LOCAL_PATH)/libhqx-1.2/Android.mk
++include $(TOP_LOCAL_PATH)/libdjvu-3.5.28/Android.mk
++include $(TOP_LOCAL_PATH)/libwebp-1.3.2/Android.mk
++include $(TOP_LOCAL_PATH)/liblame-1.0.9/Android.mk
++include $(TOP_LOCAL_PATH)/libarchive-3.8.10/Android.mk
++include $(TOP_LOCAL_PATH)/libjpeg-turbo-3.2.1/Android.mk
++include $(TOP_LOCAL_PATH)/libtiff-4.7.2/Android.mk
 +
++# libdjvu.so, libmobi.so, libhqx.so and libpdfannot.so - see that file
++include $(TOP_LOCAL_PATH)/Librera-libs.mk
++
++# --- libmupdf.so: MuPDF and its JNI, for the flavours built with it ---
 +include $(CLEAR_VARS)
-+LOCAL_PATH := $(LIBRERA_JNI_PATH)
-+LOCAL_MODULE := MuPDF
++LOCAL_PATH := $(TOP_LOCAL_PATH)
++
 +LOCAL_ARM_MODE := $(APP_ARM_MODE)
-+LOCAL_CFLAGS := -DHAVE_ANDROID
-+LOCAL_C_INCLUDES := $(LIBRERA_MUPDF_ROOT)/include \
++LOCAL_ARM_NEON := true
++
++LOCAL_C_INCLUDES := \
++    $(LIBRERA_MUPDF_ROOT)/include \
 +    $(LIBRERA_MUPDF_ROOT)/source/fitz \
 +    $(LIBRERA_MUPDF_ROOT)/source/pdf \
-+    $(LIBRERA_JNI_PATH) \
-+    $(LIBRERA_JNI_PATH)/libdjvu-3.5.28/src \
-+    $(LIBRERA_JNI_PATH)/libhqx-1.2
-+LOCAL_SRC_FILES := ebookdroidjni.c DjvuDroidBridge.cpp cbdroidbridge.c \
-+    jni_concurrent.c androidfonts.c libmupdf_librera_fork.c mupdf-image.c
-+LOCAL_STATIC_LIBRARIES := djvu hqx mupdf_java
-+LOCAL_WHOLE_STATIC_LIBRARIES := antiword libmobi_012
++    $(TOP_LOCAL_PATH)/libwebp-1.3.2/src \
++    $(TOP_LOCAL_PATH)
++
++LOCAL_CFLAGS := -DHAVE_ANDROID
++LOCAL_MODULE := mupdf
++
++LOCAL_SRC_FILES := \
++    ebookdroidjni.c \
++    jni_concurrent.c \
++    androidfonts.c \
++    libmupdf_librera_fork.c \
++    mupdf-image.c
++
++LOCAL_STATIC_LIBRARIES := mupdf_java
++
 +LOCAL_LDLIBS := -ljnigraphics -llog -lz -lm
 +LOCAL_LDLIBS += $(MUPDF_EXTRA_LDLIBS)
 +LOCAL_LDFLAGS += $(MUPDF_EXTRA_LDFLAGS)
++
 +include $(BUILD_SHARED_LIBRARY)
-diff --git a/Builder/jni/Android-nomupdf.mk b/Builder/jni/Android-nomupdf.mk
-index 9847d6cfc1b6..a687d6818a7f 100644
---- a/Builder/jni/Android-nomupdf.mk
-+++ b/Builder/jni/Android-nomupdf.mk
-@@ -22,7 +22,7 @@ TOP_LOCAL_PATH := $(LOCAL_PATH)
- # build the symbols come from mupdf_thirdparty_libjpeg. There is no MuPDF here to take them from,
- # so the same sources are built into a static library of this build's own below. libjpeg carries
- # its own permissive licence and is no part of MuPDF itself; nothing of MuPDF's is compiled here.
--MUPDF_ROOT := $(realpath $(LOCAL_PATH)/../../..)
-+MUPDF_ROOT := $(if $(LIBRERA_MUPDF_ROOT),$(LIBRERA_MUPDF_ROOT),$(realpath $(LOCAL_PATH)/../../..))
- MUPDF_PATH := $(MUPDF_ROOT)
- 
- include $(MUPDF_PATH)/Makelists
-diff --git a/Builder/jni/libmupdf_librera_1_28_5.c b/Builder/jni/libmupdf_librera_1_28_5.c
-index d8ad4a61d8b4..57a63d3ad4a4 100644
---- a/Builder/jni/libmupdf_librera_1_28_5.c
-+++ b/Builder/jni/libmupdf_librera_1_28_5.c
-@@ -6,8 +6,8 @@
- #include <stdlib.h>
+diff --git a/Builder/jni/libmupdf_librera_1_28_6.c b/Builder/jni/libmupdf_librera_1_28_6.c
+index 89e6dd4..6c5e73e 100644
+--- a/Builder/jni/libmupdf_librera_1_28_6.c
++++ b/Builder/jni/libmupdf_librera_1_28_6.c
+@@ -9,8 +9,8 @@
  #include <string.h>
+ #include <unistd.h>
  
 -#include "../ebookdroid.h"
 -#include "../javahelpers.h"
@@ -186,7 +145,7 @@ index d8ad4a61d8b4..57a63d3ad4a4 100644
  #include "mupdf/fitz.h"
  #include "mupdf/pdf.h"
  #include "androidfonts.h"
-@@ -299,8 +299,20 @@ JNIEXPORT jlong
+@@ -405,8 +405,20 @@ JNIEXPORT jlong
          mupdf_throw_exception(env, "Out of Memory");
          goto cleanup;
      }
@@ -209,16 +168,16 @@ index d8ad4a61d8b4..57a63d3ad4a4 100644
  
 diff --git a/Builder/jni/libmupdf_librera_fork.c b/Builder/jni/libmupdf_librera_fork.c
 new file mode 100644
-index 000000000000..26d01bc791c9
+index 0000000..543619a
 --- /dev/null
 +++ b/Builder/jni/libmupdf_librera_fork.c
 @@ -0,0 +1,3 @@
 +/* The existing JNI contract, compiled against vm75/mupdf's generic APIs. */
 +#define LIBRERA_MUPDF_FORK 1
-+#include "libmupdf_librera_1_28_5.c"
++#include "libmupdf_librera_1_28_6.c"
 diff --git a/Builder/jni/mupdf-image.c b/Builder/jni/mupdf-image.c
 new file mode 100644
-index 000000000000..f45b6daccb85
+index 0000000..f45b6da
 --- /dev/null
 +++ b/Builder/jni/mupdf-image.c
 @@ -0,0 +1,92 @@
@@ -316,10 +275,10 @@ index 000000000000..f45b6daccb85
 +}
 diff --git a/Builder/link_to_mupdf_fork.sh b/Builder/link_to_mupdf_fork.sh
 new file mode 100755
-index 000000000000..4c9a8a14f80b
+index 0000000..3058920
 --- /dev/null
 +++ b/Builder/link_to_mupdf_fork.sh
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,95 @@
 +#!/usr/bin/env bash
 +# Build directly from the sibling vm75/mupdf checkout, preserving its worktree.
 +set -euo pipefail
@@ -329,7 +288,8 @@ index 000000000000..4c9a8a14f80b
 +
 +property() {
 +    if [[ -f "$GRADLE_PROPERTIES" ]]; then
-+        sed -n "s/^$1=//p" "$GRADLE_PROPERTIES" | tail -n 1
++ \
++       sed -n "s/^$1=//p" "$GRADLE_PROPERTIES" | tail -n 1
 +    fi
 +}
 +
@@ -384,10 +344,13 @@ index 000000000000..4c9a8a14f80b
 +
 +# Publish outputs only after every requested ABI has built successfully.
 +mkdir -p "$ROOT_DIR/app/src/main/jniLibs"
++mkdir -p "$OUTPUT/libs-nomupdf"
 +for ABI in "${ABIS[@]}"; do
 +    mkdir -p "$ROOT_DIR/app/src/main/jniLibs/$ABI"
-+    cp "$OUTPUT/libs/$ABI/libMuPDF.so" "$ROOT_DIR/app/src/main/jniLibs/$ABI/"
-+    cp "$OUTPUT/libs/$ABI/liblame.so" "$ROOT_DIR/app/src/main/jniLibs/$ABI/"
++    cp -p "$OUTPUT/libs/$ABI/"*.so "$ROOT_DIR/app/src/main/jniLibs/$ABI/"
++    mkdir -p "$OUTPUT/libs-nomupdf/$ABI"
++    cp -p "$OUTPUT/libs/$ABI/"*.so "$OUTPUT/libs-nomupdf/$ABI/"
++    rm -f "$OUTPUT/libs-nomupdf/$ABI/libmupdf.so"
 +done
 +# Keep packaged notices aligned with the codec sources used for this build.
 +NOTICES="$ROOT_DIR/app/src/main/assets/native-codecs"
@@ -400,15 +363,19 @@ index 000000000000..4c9a8a14f80b
 +version = re.search(r'#define FZ_VERSION "([^"]+)"',
 +                    (source / 'include/mupdf/fitz/version.h').read_text()).group(1)
 +revision = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
++repository = subprocess.check_output(
++    ['git', '-C', str(source), 'remote', 'get-url', 'origin'], text=True).strip()
 +dirty = bool(subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain'], text=True))
-+codecs = {name: subprocess.check_output(['git', '-C', str(source), 'rev-parse',
-+    'HEAD:thirdparty/' + name], text=True).strip() for name in ('libwebp', 'libjxl')}
++# Toolbox adds codec gitlinks in its patch, so upstream HEAD has no codec pins.
++codecs = {name: subprocess.check_output(
++    ['git', '-C', str(source / 'thirdparty' / name), 'rev-parse', 'HEAD'],
++    text=True).strip() for name in ('libwebp', 'libjxl')}
 +pathlib.Path(sys.argv[2]).write_text(json.dumps({'version': version, 'revision': revision,
-+    'dirty': dirty, 'codecs': codecs, 'repository': 'git@github.com:vm75/mupdf.git'}, indent=2) + '\n')
++    'dirty': dirty, 'codecs': codecs, 'repository': repository}, indent=2) + '\n')
 +PY
 +echo "Native libraries: $OUTPUT/libs"
 diff --git a/app/build.gradle b/app/build.gradle
-index 1e0ac289199f..5277938f1001 100644
+index ac445c0..53e2657 100644
 --- a/app/build.gradle
 +++ b/app/build.gradle
 @@ -4,6 +4,39 @@ plugins {
@@ -451,7 +418,7 @@ index 1e0ac289199f..5277938f1001 100644
  
  
  ext {
-@@ -53,6 +86,7 @@ android {
+@@ -54,6 +87,7 @@ android {
          versionCode = codeNumber
          versionName = versionNumber
          testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -459,7 +426,7 @@ index 1e0ac289199f..5277938f1001 100644
      }
  
      configurations {
-@@ -153,6 +187,7 @@ android {
+@@ -155,6 +189,7 @@ android {
              dimension = "version"
              applicationId = "com.foobnix.pro.pdf.reader"
              manifestPlaceholders = [
@@ -467,7 +434,7 @@ index 1e0ac289199f..5277938f1001 100644
                      appName      : "Librera FD-JS",
                      appIcon      : "@mipmap/icon_pdf_pro",
                      appRoundIcon : "@mipmap/icon_pdf_pro",
-@@ -170,6 +205,7 @@ android {
+@@ -172,6 +207,7 @@ android {
              dimension = "version"
              applicationId = "com.foobnix.pro.pdf.reader"
              manifestPlaceholders = [
@@ -477,7 +444,7 @@ index 1e0ac289199f..5277938f1001 100644
                      appRoundIcon : "@mipmap/icon_pdf_pro",
 diff --git a/app/src/androidTest/assets/native-images/README.md b/app/src/androidTest/assets/native-images/README.md
 new file mode 100644
-index 000000000000..bede3860dc58
+index 0000000..bede386
 --- /dev/null
 +++ b/app/src/androidTest/assets/native-images/README.md
 @@ -0,0 +1,9 @@
@@ -491,10 +458,10 @@ index 000000000000..bede3860dc58
 +grayscale. `Builder/tests/NativeImageSmoke.java` exercises the production JNI
 +bridge against them on a host JVM.
 diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
-index a1df74c6cf2e..22e4471fc414 100644
+index e4362d7..32753b6 100644
 --- a/app/src/main/AndroidManifest.xml
 +++ b/app/src/main/AndroidManifest.xml
-@@ -245,6 +245,22 @@
+@@ -248,6 +248,22 @@
          </activity>
  
  
@@ -518,23 +485,23 @@ index a1df74c6cf2e..22e4471fc414 100644
              android:name="com.foobnix.pdf.search.activity.HorizontalViewActivity"
              android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
 diff --git a/app/src/main/assets/licenses.html b/app/src/main/assets/licenses.html
-index e434837b59a3..026cd329e02b 100644
+index 7065b61..c4a4cac 100644
 --- a/app/src/main/assets/licenses.html
 +++ b/app/src/main/assets/licenses.html
-@@ -30,15 +30,23 @@ <h3>Librera Reader</h3>
+@@ -30,15 +30,23 @@ code { font-size: 11px; }
  <h3>Libraries</h3>
  <table>
  <tr><th>Library</th><th>Version</th><th>License</th></tr>
--<tr><td>MuPDF</td><td>1.28.5 (1.23.7)</td><td>AGPL-3.0</td></tr>
+-<tr><td>MuPDF</td><td>1.28.5</td><td>AGPL-3.0</td></tr>
 +<tr><td>MuPDF</td><td>1.29.0 (vm75 fork)</td><td>AGPL-3.0</td></tr>
  <tr><td>DjVuLibre</td><td>3.5.28</td><td>GPL-2.0-or-later</td></tr>
- <tr><td>antiword</td><td>1.3.1</td><td>GPL-2.0</td></tr>
  <tr><td>libmobi</td><td>0.12</td><td>LGPL-3.0-or-later</td></tr>
  <tr><td>hqx</td><td>1.2</td><td>LGPL-2.1-or-later</td></tr>
  <tr><td>LAME</td><td>3.100</td><td>LGPL-2.0-or-later</td></tr>
 -<tr><td>libwebp</td><td>1.3.2</td><td>BSD-3-Clause</td></tr>
 +<tr><td>libwebp</td><td>1.6.0</td><td>BSD-3-Clause</td></tr>
 +<tr><td>libjxl</td><td>0.12.0</td><td>BSD-3-Clause</td></tr>
+ <tr><td>libarchive (ZIP, RAR and RAR5 readers)</td><td>3.8.10</td><td>BSD-2-Clause</td></tr>
  </table>
  
 +<p>JPEG XL decoder notices:
@@ -549,7 +516,7 @@ index e434837b59a3..026cd329e02b 100644
  <tr><th>Component</th><th>License</th></tr>
 diff --git a/app/src/main/assets/native-codecs/brotli.txt b/app/src/main/assets/native-codecs/brotli.txt
 new file mode 100644
-index 000000000000..33b7cdd2dbae
+index 0000000..33b7cdd
 --- /dev/null
 +++ b/app/src/main/assets/native-codecs/brotli.txt
 @@ -0,0 +1,19 @@
@@ -574,7 +541,7 @@ index 000000000000..33b7cdd2dbae
 +THE SOFTWARE.
 diff --git a/app/src/main/assets/native-codecs/highway.txt b/app/src/main/assets/native-codecs/highway.txt
 new file mode 100644
-index 000000000000..f49a4e16e68b
+index 0000000..f49a4e1
 --- /dev/null
 +++ b/app/src/main/assets/native-codecs/highway.txt
 @@ -0,0 +1,201 @@
@@ -782,7 +749,7 @@ index 000000000000..f49a4e16e68b
 \ No newline at end of file
 diff --git a/app/src/main/assets/native-codecs/libjxl.txt b/app/src/main/assets/native-codecs/libjxl.txt
 new file mode 100644
-index 000000000000..c66034b105f2
+index 0000000..c66034b
 --- /dev/null
 +++ b/app/src/main/assets/native-codecs/libjxl.txt
 @@ -0,0 +1,27 @@
@@ -815,10 +782,10 @@ index 000000000000..c66034b105f2
 +OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 diff --git a/app/src/main/assets/native-codecs/libwebp.txt b/app/src/main/assets/native-codecs/libwebp.txt
 new file mode 100644
-index 000000000000..7a6f99547d4d
+index 0000000..83e4e6f
 --- /dev/null
 +++ b/app/src/main/assets/native-codecs/libwebp.txt
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,29 @@
 +Copyright (c) 2010, Google Inc. All rights reserved.
 +
 +Redistribution and use in source and binary forms, with or without
@@ -848,10 +815,9 @@ index 000000000000..7a6f99547d4d
 +THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 +(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 +OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-+
 diff --git a/app/src/main/assets/native-codecs/skcms.txt b/app/src/main/assets/native-codecs/skcms.txt
 new file mode 100644
-index 000000000000..6c7c5be36019
+index 0000000..6c7c5be
 --- /dev/null
 +++ b/app/src/main/assets/native-codecs/skcms.txt
 @@ -0,0 +1,29 @@
@@ -885,10 +851,10 @@ index 000000000000..6c7c5be36019
 +
 +--------------------------------------------------------------------------------
 diff --git a/app/src/main/java/com/BaseExtractor.java b/app/src/main/java/com/BaseExtractor.java
-index a973ac2e558c..e7316a4940d4 100644
+index a7d940e..32f8a09 100644
 --- a/app/src/main/java/com/BaseExtractor.java
 +++ b/app/src/main/java/com/BaseExtractor.java
-@@ -23,8 +23,11 @@
+@@ -24,8 +24,11 @@ import java.io.ByteArrayInputStream;
  import java.io.ByteArrayOutputStream;
  import java.io.IOException;
  import java.io.InputStream;
@@ -900,9 +866,9 @@ index a973ac2e558c..e7316a4940d4 100644
  public abstract class BaseExtractor {
  
      public abstract EbookMeta getBookMetaInformation(String path);
-@@ -124,15 +127,24 @@ public static Bitmap arrayToBitmap(byte[] array, int width) {
-             if(array==null){
-                 return null;
+@@ -130,15 +133,24 @@ public abstract class BaseExtractor {
+                 final int[] size = NativeTiff.size(array);
+                 return size == null ? null : NativeTiff.decode(array, width > 0 ? size[0] / width : 1);
              }
 +            if (MuPdfImage.isJxl(array)) {
 +                byte[] png = MuPdfImage.decodeToPng(array, width);
@@ -927,7 +893,7 @@ index a973ac2e558c..e7316a4940d4 100644
  
          } catch (Exception e) {
              LOG.e(e);
-@@ -142,11 +154,17 @@ public static Bitmap arrayToBitmap(byte[] array, int width) {
+@@ -148,11 +160,17 @@ public abstract class BaseExtractor {
  
      public static InputStream decodeImage(String path, int width) {
          try {
@@ -947,7 +913,7 @@ index a973ac2e558c..e7316a4940d4 100644
              options.inJustDecodeBounds = false;
              LOG.d("inSampleSize", options.inSampleSize);
 diff --git a/app/src/main/java/com/foobnix/ext/HtmlToEpub.java b/app/src/main/java/com/foobnix/ext/HtmlToEpub.java
-index 2458de965c2f..ce105f8e61bf 100644
+index 2458de9..ce105f8 100644
 --- a/app/src/main/java/com/foobnix/ext/HtmlToEpub.java
 +++ b/app/src/main/java/com/foobnix/ext/HtmlToEpub.java
 @@ -66,6 +66,7 @@ public class HtmlToEpub {
@@ -959,10 +925,10 @@ index 2458de965c2f..ce105f8e61bf 100644
          MIME.put("tif", "image/tiff");
          MIME.put("tiff", "image/tiff");
 diff --git a/app/src/main/java/com/foobnix/pdf/info/ExtUtils.java b/app/src/main/java/com/foobnix/pdf/info/ExtUtils.java
-index f42c9cc7025c..fae0744bd661 100644
+index 06aea6e..259658f 100644
 --- a/app/src/main/java/com/foobnix/pdf/info/ExtUtils.java
 +++ b/app/src/main/java/com/foobnix/pdf/info/ExtUtils.java
-@@ -107,8 +107,12 @@ public class ExtUtils {
+@@ -108,8 +108,12 @@ public class ExtUtils {
      public static final String REFLOW_HTML = "-reflow.html";
      public final static List<String> otherExts = Arrays.asList(AppState.OTHER_BOOK_EXT);
      public final static List<String> lirbeExt = Arrays.asList(AppState.LIBRE_EXT);
@@ -978,10 +944,10 @@ index f42c9cc7025c..fae0744bd661 100644
      public final static List<String> browseExts = BookType.getAllSupportedExtensions();
      public final static List<String> AUDIO = Arrays.asList(".mp3", ".mp4", ".wav", ".ogg", ".m4a", ".m4b", ".flac");
 diff --git a/app/src/main/java/com/foobnix/sys/ImageExtractor.java b/app/src/main/java/com/foobnix/sys/ImageExtractor.java
-index 30b5cb095975..3efd5088f83a 100644
+index 9eea6fc..c1954e5 100644
 --- a/app/src/main/java/com/foobnix/sys/ImageExtractor.java
 +++ b/app/src/main/java/com/foobnix/sys/ImageExtractor.java
-@@ -695,7 +695,12 @@ public InputStream getStreamInner(final String imageUri, String hash) throws IOE
+@@ -679,7 +679,12 @@ public class ImageExtractor {
              // uri = uri.replace("data:image/gif;base64,", "");
              uri = uri.substring(uri.indexOf(",") + 1);
              LOG.d("Load image data ", uri);
@@ -995,7 +961,7 @@ index 30b5cb095975..3efd5088f83a 100644
          }
          if (imageUri.startsWith("assets:")) {
              return LibreraApp.context.getResources().getAssets().open(imageUri.replace("assets://", ""));
-@@ -719,6 +724,13 @@ public InputStream getStreamInner(final String imageUri, String hash) throws IOE
+@@ -703,6 +708,13 @@ public class ImageExtractor {
  
              if (ExtUtils.isExteralSD(path)) {
                  if (ExtUtils.isImagePath(path)) {
@@ -1011,7 +977,7 @@ index 30b5cb095975..3efd5088f83a 100644
                  String display = ExtUtils.getFileName(Uri.decode(path));
 diff --git a/app/src/main/java/com/foobnix/sys/JxlBitmapDecoder.java b/app/src/main/java/com/foobnix/sys/JxlBitmapDecoder.java
 new file mode 100644
-index 000000000000..5bde10c94bfb
+index 0000000..5bde10c
 --- /dev/null
 +++ b/app/src/main/java/com/foobnix/sys/JxlBitmapDecoder.java
 @@ -0,0 +1,90 @@
@@ -1106,21 +1072,23 @@ index 000000000000..5bde10c94bfb
 +    }
 +}
 diff --git a/app/src/main/java/com/foobnix/sys/LibreraAppGlideModule.java b/app/src/main/java/com/foobnix/sys/LibreraAppGlideModule.java
-index 8517374a8a64..19423edfa7d9 100644
+index 4cd5cfa..7f734a4 100644
 --- a/app/src/main/java/com/foobnix/sys/LibreraAppGlideModule.java
 +++ b/app/src/main/java/com/foobnix/sys/LibreraAppGlideModule.java
-@@ -204,6 +204,10 @@ public void applyOptions(@NonNull Context context, @NonNull GlideBuilder builder
+@@ -221,6 +221,12 @@ public class LibreraAppGlideModule extends AppGlideModule {
  
      @Override
      public void registerComponents(Context context, Glide glide, Registry registry) {
 +        if (com.foobnix.pdf.info.Engines.IS_MUPDF) {
-+            registry.prepend(java.nio.ByteBuffer.class, Bitmap.class, new JxlBitmapDecoder(glide.getBitmapPool()));
-+            registry.prepend(InputStream.class, Bitmap.class, new JxlBitmapDecoder.StreamDecoder(glide.getBitmapPool()));
++            registry.prepend(java.nio.ByteBuffer.class, Bitmap.class,
++                    new JxlBitmapDecoder(glide.getBitmapPool()));
++            registry.prepend(InputStream.class, Bitmap.class,
++                    new JxlBitmapDecoder.StreamDecoder(glide.getBitmapPool()));
 +        }
          //registry.append(Bitmap.class, new BitmapEncoder(glide.getArrayPool()));
          //registry.prepend(Bitmap.class, new BitmapEncoder(glide.getArrayPool()));
          // Pictures off the network are fetched with the catalogues' own client, in place of
-@@ -226,4 +230,4 @@ public void teardown() {
+@@ -243,4 +249,4 @@ public class LibreraAppGlideModule extends AppGlideModule {
      }
  
  
@@ -1128,22 +1096,22 @@ index 8517374a8a64..19423edfa7d9 100644
 \ No newline at end of file
 +}
 diff --git a/app/src/main/java/org/ebookdroid/BookType.java b/app/src/main/java/org/ebookdroid/BookType.java
-index 842cd6f3b5cd..583ce4e0a6fd 100644
+index 3d9d3f7..ceac61b 100644
 --- a/app/src/main/java/org/ebookdroid/BookType.java
 +++ b/app/src/main/java/org/ebookdroid/BookType.java
-@@ -47,6 +47,9 @@ public enum BookType {
+@@ -48,6 +48,9 @@ public enum BookType {
      PDF(PdfContext.class, false, false, Engines.IS_MUPDF ? list("pdf", "xps") : list("pdf"), list("application/pdf","application/oxps","application/vnd.ms-xpsdocument")),
-     TIFF(PdfContext.class, false, false, Engines.IS_MUPDF ? list("tiff", "tif") : list("xxx"), list("image/tiff")),
+     TIFF(TiffContext.class, false, false, list("tiff", "tif"), list("image/tiff")),
  
 +    IMAGE(PdfContext.class, false, false, Engines.IS_MUPDF ? list("webp", "jxl") : list("xxx"),
 +            list("image/webp", "image/jxl")),
 +
-     CBZ(PdfContext.class, false, true, list("cbz"), list("application/x-cbz","application/comicbook+zip")),
-     CBR(CbrContext.class, false, true, list("cbr"), list("application/x-cbr","application/comicbook+rar")),
- 
+     // Comics are read by the comic engine in every build, MuPDF or not: libarchive in place
+     CBZ(ComicContext.class, false, true, list("cbz"), list("application/x-cbz","application/comicbook+zip")),
+     CBR(ComicContext.class, false, true, list("cbr"), list("application/x-cbr","application/comicbook+rar")),
 diff --git a/app/src/main/java/org/ebookdroid/droids/mupdf/codec/MuPdfImage.java b/app/src/main/java/org/ebookdroid/droids/mupdf/codec/MuPdfImage.java
 new file mode 100644
-index 000000000000..a5a76507ed4f
+index 0000000..c24a8a1
 --- /dev/null
 +++ b/app/src/main/java/org/ebookdroid/droids/mupdf/codec/MuPdfImage.java
 @@ -0,0 +1,42 @@
@@ -1180,7 +1148,7 @@ index 000000000000..a5a76507ed4f
 +
 +    private static final class NativeLibrary {
 +        static {
-+            System.loadLibrary(Engines.NATIVE_LIBRARY);
++            System.loadLibrary(Engines.MUPDF_LIBRARY);
 +        }
 +
 +        static void ensureLoaded() {
@@ -1190,38 +1158,38 @@ index 000000000000..a5a76507ed4f
 +    private static native byte[] nativeDecodeToPng(byte[] data, int width);
 +}
 diff --git a/app/src/noMupdf/jniLibs/arm64-v8a b/app/src/noMupdf/jniLibs/arm64-v8a
-index 2bc55237000d..080a002456f3 120000
+index c540b95..fbc7871 120000
 --- a/app/src/noMupdf/jniLibs/arm64-v8a
 +++ b/app/src/noMupdf/jniLibs/arm64-v8a
 @@ -1 +1 @@
--/Users/ivanivanenko/git/LibreraReader/Builder/mupdf-1.28.5/platform/librera/libs-nomupdf/arm64-v8a
+-/Users/ivanivanenko/git/LibreraReader/Builder/mupdf-1.28.6/platform/librera/libs-nomupdf/arm64-v8a
 \ No newline at end of file
-+../../../../Builder/build/nomupdf-fork/libs/arm64-v8a
++../../../../Builder/build/mupdf-fork/libs-nomupdf/arm64-v8a
 \ No newline at end of file
 diff --git a/app/src/noMupdf/jniLibs/armeabi-v7a b/app/src/noMupdf/jniLibs/armeabi-v7a
-index 16c2ef709ec4..5c26a2ac143e 120000
+index cbe96f6..b7ec98c 120000
 --- a/app/src/noMupdf/jniLibs/armeabi-v7a
 +++ b/app/src/noMupdf/jniLibs/armeabi-v7a
 @@ -1 +1 @@
--/Users/ivanivanenko/git/LibreraReader/Builder/mupdf-1.28.5/platform/librera/libs-nomupdf/armeabi-v7a
+-/Users/ivanivanenko/git/LibreraReader/Builder/mupdf-1.28.6/platform/librera/libs-nomupdf/armeabi-v7a
 \ No newline at end of file
-+../../../../Builder/build/nomupdf-fork/libs/armeabi-v7a
++../../../../Builder/build/mupdf-fork/libs-nomupdf/armeabi-v7a
 \ No newline at end of file
 diff --git a/app/src/noMupdf/jniLibs/x86 b/app/src/noMupdf/jniLibs/x86
-index e2f178e3d5a9..158ae205c3ad 120000
+index eddc248..0af1ef1 120000
 --- a/app/src/noMupdf/jniLibs/x86
 +++ b/app/src/noMupdf/jniLibs/x86
 @@ -1 +1 @@
--/Users/ivanivanenko/git/LibreraReader/Builder/mupdf-1.28.5/platform/librera/libs-nomupdf/x86
+-/Users/ivanivanenko/git/LibreraReader/Builder/mupdf-1.28.6/platform/librera/libs-nomupdf/x86
 \ No newline at end of file
-+../../../../Builder/build/nomupdf-fork/libs/x86
++../../../../Builder/build/mupdf-fork/libs-nomupdf/x86
 \ No newline at end of file
 diff --git a/app/src/noMupdf/jniLibs/x86_64 b/app/src/noMupdf/jniLibs/x86_64
-index 9238807a3adc..04f97d342168 120000
+index 385f837..e02f9f3 120000
 --- a/app/src/noMupdf/jniLibs/x86_64
 +++ b/app/src/noMupdf/jniLibs/x86_64
 @@ -1 +1 @@
--/Users/ivanivanenko/git/LibreraReader/Builder/mupdf-1.28.5/platform/librera/libs-nomupdf/x86_64
+-/Users/ivanivanenko/git/LibreraReader/Builder/mupdf-1.28.6/platform/librera/libs-nomupdf/x86_64
 \ No newline at end of file
-+../../../../Builder/build/nomupdf-fork/libs/x86_64
++../../../../Builder/build/mupdf-fork/libs-nomupdf/x86_64
 \ No newline at end of file

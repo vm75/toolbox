@@ -17,7 +17,8 @@ The `publish_release` checkbox defaults to **false**. Publishing is a separate
 step inside the *manually dispatched* build after success.
 Use `upstream_ref` to select a tool revision; for nginx enter an exact release
 such as `1.28.0`, or leave blank for the latest stable release. `mupdf_ref`
-selects the MuPDF dependency independently when building Librera. Tool builds
+selects the MuPDF dependency independently when building Librera. Librera defaults
+to GitHub's latest stable release; an explicit `upstream_ref` overrides it. Tool builds
 use the versioned builder image tags configured in `scripts/run.sh`.
 
 Before the first full nginx, btop or Android build, manually publish its builder

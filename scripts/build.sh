@@ -56,6 +56,16 @@ prepare() {
   if [[ -n "$url" ]]; then
     [[ ! -e "$src" ]] || { echo "Source directory must be fresh: $src" >&2; exit 1; }
     ref="${ref:-$default_ref}"
+    if [[ "$name" == librera && "$ref" == latest-stable ]]; then
+      ref="$(curl -fsSL --retry 3 \
+        https://api.github.com/repos/foobnix/LibreraReader/releases/latest |
+        python3 -c 'import json, sys
+release = json.load(sys.stdin)
+tag = release.get("tag_name")
+if release.get("draft") or release.get("prerelease") or not isinstance(tag, str) or not tag:
+    sys.exit("No stable Librera release tag returned by GitHub")
+print("refs/tags/" + tag)')"
+    fi
     echo "::group::Fetch $name from $url at $ref"
     git init -q "$src"
     git -C "$src" remote add origin "$url"
