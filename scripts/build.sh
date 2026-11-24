@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Clean upstream -> optional single patch -> tool-specific build.
 set -Eeuo pipefail
+unset CDPATH
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 usage() {
   echo "Usage: scripts/build.sh TOOL TARGET [UPSTREAM_REF]" >&2
@@ -57,14 +58,36 @@ prepare() {
     [[ ! -e "$src" ]] || { echo "Source directory must be fresh: $src" >&2; exit 1; }
     ref="${ref:-$default_ref}"
     if [[ "$name" == librera && "$ref" == latest-stable ]]; then
-      ref="$(curl -fsSL --retry 3 \
-        https://api.github.com/repos/foobnix/LibreraReader/releases/latest |
-        python3 -c 'import json, sys
-release = json.load(sys.stdin)
+      local auth_header=()
+      local token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+      if [[ -n "$token" ]]; then
+        auth_header=(-H "Authorization: Bearer $token")
+      fi
+      local release_json=""
+      release_json="$(curl -fsSL --retry 3 "${auth_header[@]}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "User-Agent: toolbox-build" \
+        https://api.github.com/repos/foobnix/LibreraReader/releases/latest 2>/dev/null)" || true
+      if [[ -n "$release_json" ]]; then
+        ref="$(printf '%s\n' "$release_json" | python3 -c 'import json, sys
+try:
+    release = json.load(sys.stdin)
+except Exception as e:
+    sys.exit("Failed to parse GitHub release JSON: " + str(e))
 tag = release.get("tag_name")
 if release.get("draft") or release.get("prerelease") or not isinstance(tag, str) or not tag:
     sys.exit("No stable Librera release tag returned by GitHub")
 print("refs/tags/" + tag)')"
+      else
+        local latest_tag
+        latest_tag="$(git ls-remote --tags --refs "$url" | cut -d/ -f3- | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -n 1)"
+        if [[ -n "$latest_tag" ]]; then
+          ref="refs/tags/$latest_tag"
+        else
+          echo "Failed to resolve latest stable Librera release from GitHub API or git remote" >&2
+          exit 1
+        fi
+      fi
     fi
     echo "::group::Fetch $name from $url at $ref"
     git init -q "$src"

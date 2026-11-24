@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Select a prepared build environment; leave tool-specific work in scripts/build.sh.
 set -Eeuo pipefail
+unset CDPATH
 [[ $# -ge 2 && $# -le 3 ]] || { echo "Usage: scripts/run.sh TOOL TARGET [UPSTREAM_REF]" >&2; exit 2; }
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -43,6 +44,12 @@ args=(docker run --rm --user builder
   --workdir /workspace
   --env "TOOLBOX_JOBS=${TOOLBOX_JOBS:-4}"
   --env "TOOLBOX_MUPDF_REF=${TOOLBOX_MUPDF_REF:-}")
+
+for token_var in GITHUB_TOKEN GH_TOKEN; do
+  if [[ -n "${!token_var:-}" ]]; then
+    args+=(--env "$token_var")
+  fi
+done
 
 if [[ "$builder" == entware-aarch64 || "$builder" == entware-armv7 ]]; then
   # Both Entware images pre-build the matching nginx toolchain here.

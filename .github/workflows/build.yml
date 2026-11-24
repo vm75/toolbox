@@ -191,6 +191,7 @@ jobs:
       - name: Build from upstream and optional patch
         shell: bash
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TOOLBOX_MUPDF_REF: ${{ inputs.mupdf_ref }}
           TOOLBOX_JOBS: '4'
           TOOLBOX_PREPARE_ONLY: ${{ inputs.prepare_only && '1' || '0' }}

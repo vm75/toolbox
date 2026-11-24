@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+unset CDPATH
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 for script in scripts/*.sh tools/*/build.sh tools/nginx/upstream-builder.sh; do
@@ -119,6 +120,10 @@ DEPS=""
 CONF
 cat > "$tmp/release-bin/curl" <<'MOCK_RELEASE'
 #!/usr/bin/env bash
+if [[ -n "${TOOLBOX_TEST_CURL_FAIL:-}" ]]; then
+  echo "curl: (22) The requested URL returned error: 403" >&2
+  exit 22
+fi
 cat "$TOOLBOX_TEST_RELEASE_JSON"
 MOCK_RELEASE
 chmod +x "$tmp/release-bin/curl"
@@ -132,6 +137,13 @@ for ref in '' explicit-fixture; do
   expected="${ref:-refs/tags/stable-fixture}"
   grep -Fqx "librera source_ref $expected" "$tmp/release-out-$run/build-info.txt"
 done
+# Test fallback to git remote tags when GitHub API returns HTTP 403 or fails.
+git -C "$tmp/release-upstream" tag 10.1.14
+PATH="$tmp/release-bin:$PATH" TOOLBOX_TEST_CURL_FAIL=1 \
+  TOOLBOX_PREPARE_ONLY=1 TOOLBOX_WORKDIR="$tmp/release-fallback" \
+  TOOLBOX_OUTPUT="$tmp/release-out-fallback" \
+  bash "$tmp/release-root/scripts/build.sh" librera android-arm64 >/dev/null
+grep -Fqx "librera source_ref refs/tags/10.1.14" "$tmp/release-out-fallback/build-info.txt"
 printf '%s\n' '{"tag_name":"preview","prerelease":true}' > "$tmp/release.json"
 if PATH="$tmp/release-bin:$PATH" TOOLBOX_TEST_RELEASE_JSON="$tmp/release.json" \
     TOOLBOX_PREPARE_ONLY=1 TOOLBOX_WORKDIR="$tmp/release-preview" \
@@ -154,6 +166,7 @@ mkdir -p "$tmp/mock-root/tools/nginx" "$tmp/mock-root/scripts" "$tmp/mock-out"
 cat > "$tmp/mock-root/tools/nginx/upstream-builder.sh" <<'MOCK_NGINX'
 #!/usr/bin/env bash
 set -Eeuo pipefail
+unset CDPATH
 printf '%s\n' "$@" > "$TOOLBOX_TEST_NGINX_ARGS"
 out=
 while (( $# )); do
