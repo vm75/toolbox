@@ -60,9 +60,6 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
-    outputs:
-      tool: ${{ steps.select.outputs.tool }}
-      target: ${{ steps.select.outputs.target }}
     # Keep environment-scoped Android signing secrets and approval rules,
     # but do not record compilation jobs as deployments.
     environment:
@@ -218,19 +215,38 @@ jobs:
       actions: read
       contents: write
     steps:
+      # Resolve from the validated workflow input, not the signing job's outputs:
+      # GitHub can suppress outputs that happen to match a signing secret.
+      - name: Resolve release artifact name
+        id: select
+        shell: bash
+        env:
+          REQUESTED_BUILD: ${{ inputs.build }}
+        run: |
+          set -euo pipefail
+          [[ "$REQUESTED_BUILD" == *' / '* ]] || exit 2
+          tool="${REQUESTED_BUILD%% / *}"
+          target="${REQUESTED_BUILD#* / }"
+          [[ "$tool" == 'John the Ripper' ]] && tool=john
+          [[ "$tool" =~ ^[a-z0-9-]+$ && "$target" =~ ^[a-z0-9-]+$ ]] || exit 2
+          echo "tool=$tool" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
-          name: toolbox-${{ needs.build.outputs.tool }}-${{ needs.build.outputs.target }}-${{ github.run_id }}
+          name: toolbox-${{ steps.select.outputs.tool }}-${{ steps.select.outputs.target }}-${{ github.run_id }}
           path: dist/
       - name: Publish this manually selected build
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          SELECTED_TOOL: ${{ steps.select.outputs.tool }}
+          SELECTED_TARGET: ${{ steps.select.outputs.target }}
         run: |
           set -euo pipefail
-          tag="toolbox-${{ needs.build.outputs.tool }}-${{ needs.build.outputs.target }}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          tag="toolbox-$SELECTED_TOOL-$SELECTED_TARGET-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
           tar -C dist -czf "$RUNNER_TEMP/$tag.tar.gz" .
           mapfile -d '' -t ipks < <(find dist -type f -name '*.ipk' -print0)
           gh release create "$tag" "$RUNNER_TEMP/$tag.tar.gz" "${ipks[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
             --title "$tag" --notes "Manually requested upstream build. See build-info.txt for source commits and patch checksums. Validate on target before deploying." \
             --latest=false --target "$GITHUB_SHA"
