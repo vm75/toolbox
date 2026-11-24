@@ -121,6 +121,14 @@ jobs:
           go-version: stable
           cache: false
 
+      # Upstream cross-compiles on amd64 but runs target-architecture Alpine
+      # commands in the final image. Register binfmt for both ARM Linux targets.
+      - name: Set up QEMU for Vaultwarden ARM Linux builds
+        if: ${{ !inputs.prepare_only && steps.select.outputs.tool == 'vaultwarden' && (steps.select.outputs.target == 'linux-arm64' || steps.select.outputs.target == 'linux-armv7') }}
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64,arm
+
       - name: Set up Vaultwarden Rust and Zig tools
         if: ${{ !inputs.prepare_only && steps.select.outputs.tool == 'vaultwarden' && (steps.select.outputs.target == 'entware-aarch64' || steps.select.outputs.target == 'entware-armv7') }}
         shell: bash
