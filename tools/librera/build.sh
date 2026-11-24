@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+# Java's filename encoding must preserve the Cyrillic dictionary asset names.
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
 export LIBRERA_MUPDF_DIR="$WORKSPACE/source/mupdf"
 export LIBRERA_NDK_DIR="${LIBRERA_NDK_DIR:-${ANDROID_NDK_HOME:-}}"
 [[ -x "$LIBRERA_NDK_DIR/ndk-build" ]] || { echo "Install Android NDK and set LIBRERA_NDK_DIR" >&2; exit 1; }
