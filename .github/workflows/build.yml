@@ -244,9 +244,23 @@ jobs:
         run: |
           set -euo pipefail
           tag="toolbox-$SELECTED_TOOL-$SELECTED_TARGET-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
-          tar -C dist -czf "$RUNNER_TEMP/$tag.tar.gz" .
-          mapfile -d '' -t ipks < <(find dist -type f -name '*.ipk' -print0)
-          gh release create "$tag" "$RUNNER_TEMP/$tag.tar.gz" "${ipks[@]}" \
+          case "$SELECTED_TOOL" in
+            cryptomator|librera)
+              # Publish each signed APK directly for installation on Android.
+              mapfile -d '' -t assets < <(find dist -type f -name '*.apk' -print0 | sort -z)
+              if (( ${#assets[@]} == 0 )); then
+                echo "::error::No APKs found in the Android build artifact" >&2
+                exit 1
+              fi
+              assets+=(dist/build-info.txt dist/SHA256SUMS)
+              ;;
+            *)
+              tar -C dist -czf "$RUNNER_TEMP/$tag.tar.gz" .
+              mapfile -d '' -t ipks < <(find dist -type f -name '*.ipk' -print0)
+              assets=("$RUNNER_TEMP/$tag.tar.gz" "${ipks[@]}")
+              ;;
+          esac
+          gh release create "$tag" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$tag" --notes "Manually requested upstream build. See build-info.txt for source commits and patch checksums. Validate on target before deploying." \
             --latest=false --target "$GITHUB_SHA"
