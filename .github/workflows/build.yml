@@ -57,17 +57,17 @@ permissions:
   packages: read
 
 jobs:
-  # Reserve the exact source tag before a long build can outlive main's HEAD.
+  # Keep the build commit at a branch tip until the versioned tag can be created.
   # This job has no checkout, build dependencies, or Android signing secrets.
-  reserve_release_tag:
+  reserve_source:
     if: ${{ inputs.publish_release && !inputs.prepare_only }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
-      tag: ${{ steps.reserve.outputs.tag }}
+      branch: ${{ steps.reserve.outputs.branch }}
     steps:
-      - name: Reserve release tag for this build
+      - name: Reserve source commit for this build
         id: reserve
         shell: bash
         env:
@@ -80,18 +80,17 @@ jobs:
           target="${REQUESTED_BUILD#* / }"
           [[ "$tool" == 'John the Ripper' ]] && tool=john
           [[ "$tool" =~ ^[a-z0-9-]+$ && "$target" =~ ^[a-z0-9-]+$ ]] || exit 2
-          tag="toolbox-$tool-$target-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          branch="toolbox-builds/r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
           if ! gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-              -f "ref=refs/tags/$tag" -f "sha=$GITHUB_SHA" --silent; then
-            # Allow an already-reserved tag only if it names this exact commit.
-            actual="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha)"
+              -f "ref=refs/heads/$branch" -f "sha=$GITHUB_SHA" --silent; then
+            actual="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq .object.sha)"
             [[ "$actual" == "$GITHUB_SHA" ]] || exit 1
           fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
   build:
-    needs: reserve_release_tag
-    if: ${{ !cancelled() && (needs.reserve_release_tag.result == 'success' || needs.reserve_release_tag.result == 'skipped') }}
+    needs: reserve_source
+    if: ${{ !cancelled() && (needs.reserve_source.result == 'success' || needs.reserve_source.result == 'skipped') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     # Keep environment-scoped Android signing secrets and approval rules,
@@ -252,7 +251,7 @@ jobs:
 
   release:
     if: ${{ inputs.publish_release && !inputs.prepare_only }}
-    needs: [build, reserve_release_tag]
+    needs: [build, reserve_source]
     runs-on: ubuntu-24.04
     permissions:
       actions: read
@@ -278,54 +277,16 @@ jobs:
         with:
           name: toolbox-${{ steps.select.outputs.tool }}-${{ steps.select.outputs.target }}-${{ github.run_id }}
           path: dist/
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          path: release-source
       - name: Publish this manually selected build
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.reserve_release_tag.outputs.tag }}
+          SOURCE_BRANCH: ${{ needs.reserve_source.outputs.branch }}
           SELECTED_TOOL: ${{ steps.select.outputs.tool }}
           SELECTED_TARGET: ${{ steps.select.outputs.target }}
-        run: |
-          set -euo pipefail
-          tag="$RELEASE_TAG"
-          [[ "$tag" == "toolbox-$SELECTED_TOOL-$SELECTED_TARGET-r${GITHUB_RUN_ID}-a"* ]] || {
-            echo "::error::Missing or invalid reserved release tag" >&2; exit 1;
-          }
-          actual="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha)"
-          [[ "$actual" == "$GITHUB_SHA" ]] || {
-            echo "::error::Reserved release tag no longer points to the build commit" >&2; exit 1;
-          }
-          case "$SELECTED_TARGET:$SELECTED_TOOL" in
-            entware-aarch64:*|entware-armv7:*)
-              # Publish installable packages directly, including nginx module IPKs.
-              mapfile -d '' -t assets < <(find dist -type f -name '*.ipk' -print0 | sort -z)
-              if (( ${#assets[@]} == 0 )); then
-                echo "::error::No IPKs found in the Entware build artifact" >&2
-                exit 1
-              fi
-              # Release downloads are flat, unlike the build artifact directory.
-              # Generate checksums for the files actually attached to the release.
-              assets+=(dist/build-info.txt)
-              for asset in "${assets[@]}"; do
-                (cd "$(dirname "$asset")" && sha256sum -- "$(basename "$asset")")
-              done > "$RUNNER_TEMP/SHA256SUMS"
-              assets+=("$RUNNER_TEMP/SHA256SUMS")
-              ;;
-            android-arm64:cryptomator|android-arm64:librera)
-              # Publish each signed APK directly for installation on Android.
-              mapfile -d '' -t assets < <(find dist -type f -name '*.apk' -print0 | sort -z)
-              if (( ${#assets[@]} == 0 )); then
-                echo "::error::No APKs found in the Android build artifact" >&2
-                exit 1
-              fi
-              assets+=(dist/build-info.txt dist/SHA256SUMS)
-              ;;
-            *)
-              tar -C dist -czf "$RUNNER_TEMP/$tag.tar.gz" .
-              assets=("$RUNNER_TEMP/$tag.tar.gz")
-              ;;
-          esac
-          gh release create "$tag" "${assets[@]}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$tag" --notes "Manually requested upstream build. See build-info.txt for source commits and patch checksums. Validate on target before deploying." \
-            --latest=false --verify-tag
+        run: bash release-source/scripts/publish-release.sh

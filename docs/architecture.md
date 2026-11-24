@@ -21,7 +21,7 @@ manual workflow_dispatch (tool + compatible target + optional refs)
        |
   Actions artifact
        |
-  optional manual GitHub Release (default off)
+  optional manual GitHub Release (default on; versioned tag)
 ```
 
 ## Target isolation
@@ -61,7 +61,12 @@ refs override it. If the API is unavailable, the resolver warns and falls back t
 the highest numeric Git tag. The resolved ref and commit are recorded in
 `build-info.txt`. Their recipes receive `APK_VERSION`, the filename-safe selected
 tag/ref, and include it in each APK name; Librera also preserves the APK variant.
-Use exact refs for reproducibility.
+Use exact refs for reproducibility. After successful compilation the common
+version resolver records `release_version` in `build-info.txt`. The release job
+uses that value and the target to name the release and tag, pins the exact
+build commit via a temporary source branch, and never overwrites prior releases.
+Identical recorded inputs reuse a published release; differing inputs receive
+`-r2`, `-r3`, etc.
 
 There is one optional `custom.patch` for each project. It is applied once
 to fresh source and never committed back to the upstream repository.

@@ -106,7 +106,7 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 # Exercise release selection with a local upstream and no network access.
 mkdir -p "$tmp/release-root/scripts" "$tmp/release-root/tools/"{librera,cryptomator} "$tmp/release-bin"
-cp scripts/build.sh "$tmp/release-root/scripts/"
+cp scripts/{build,release-version}.sh "$tmp/release-root/scripts/"
 git init -q "$tmp/release-upstream"
 git -C "$tmp/release-upstream" -c user.name=Test -c user.email=test@example.invalid \
   commit -qm fixture --allow-empty
@@ -146,6 +146,7 @@ for tool in librera cryptomator; do
     expected="${ref:-refs/tags/stable-fixture}"
     grep -Fqx "$tool source_ref $expected" "$tmp/release-out-$run/build-info.txt"
     [[ -f "$tmp/release-out-$run/$tool-${expected#refs/tags/}.apk" ]]
+    grep -Fqx "release_version ${expected#refs/tags/}" "$tmp/release-out-$run/build-info.txt"
   done
 done
 # Test fallback to git remote tags when GitHub API returns HTTP 403 or fails.
@@ -217,6 +218,19 @@ for target in entware-aarch64 entware-armv7; do
   tar -xOf "$package" control.tar.gz | tar -xzOf - ./control | grep -qx "Architecture: $arch" || {
     echo "Wrong opkg Architecture for $target" >&2; exit 1;
   }
+done
+# Versioned release metadata must use the actual IPK package version for both ABIs.
+for target in entware-aarch64 entware-armv7; do
+  case "$target" in entware-aarch64) arch=aarch64-3.10 ;; *) arch=armv7-3.2 ;; esac
+  for tool in nginx btop vaultwarden; do
+    package="$tool"; [[ "$tool" != nginx ]] || package=nginx-ssl
+    mkdir -p "$tmp/version-$tool-$target"
+    out="$tmp/version-$tool-$target"
+    touch "$out/${package}_1.30.8-99_${arch}.ipk"
+    : > "$out/build-info.txt"
+    TOOL="$tool" TARGET="$target" OUT="$out" SRC="$tmp" bash scripts/release-version.sh
+    grep -Fxq 'release_version 1.30.8-99' "$out/build-info.txt"
+  done
 done
 # All three tools must advertise the supported Entware ARMv7 *soft-float* target.
 for tool in nginx vaultwarden btop; do

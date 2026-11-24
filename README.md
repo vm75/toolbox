@@ -14,7 +14,16 @@ The workflow downloads upstream, applies
 `tools/<tool>/custom.patch` when present, builds and uploads artifacts.
 **No Actions build or release runs on push, PR, tag, release or a schedule.**
 The `publish_release` checkbox defaults to **true**; uncheck it to skip publishing.
-Publishing is a separate step inside the *manually dispatched* build after success.
+Publishing is a separate job inside the *manually dispatched* build after success.
+Release titles and Git tags use `toolbox-<tool>-<platform>-<version>_<architecture>`,
+for example `toolbox-nginx-entware-1.30.8-99_aarch64`. Entware uses the primary
+IPK version, including its package revision; Android apps use the upstream tag.
+Native branch builds use a source version plus `-g<commit>` (or `g<commit>` when
+no version is available). Rebuilding the same recorded source, dependency, patch
+and toolbox commit reuses an existing published release; changed inputs use
+`-r2`, `-r3`, etc. without overwriting prior releases. A temporary source branch
+pins the exact toolbox commit while the build runs and is removed after publication.
+Run IDs remain in release notes, not release names.
 Use `upstream_ref` to select a tool revision; for nginx enter an exact release
 such as `1.28.0`, or leave blank for the latest stable release. `mupdf_ref`
 selects the MuPDF dependency independently when building Librera. Cryptomator and Librera

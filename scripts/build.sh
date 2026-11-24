@@ -145,6 +145,7 @@ export SRC="$WORKSPACE/source/$TOOL"
 echo "tool $TOOL" >> "$OUT/build-info.txt"
 echo "target $TARGET" >> "$OUT/build-info.txt"
 bash "$ROOT/tools/$TOOL/build.sh"
+bash "$ROOT/scripts/release-version.sh"
 find "$OUT" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 -r sha256sum > "$OUT/SHA256SUMS"
 [[ "$(find "$OUT" -type f ! -name build-info.txt ! -name SHA256SUMS | wc -l)" -gt 0 ]] || {
   echo "::error::No build artifact produced" >&2; exit 1;
