@@ -1,6 +1,6 @@
 name: Build toolbox tool
 run-name: "Build ${{ inputs.build }}${{ inputs.prepare_only && ' (prepare only)' || '' }}"
-# Deliberately no push, pull_request, release, tag or schedule triggers.
+# No direct automatic triggers; scheduled.yml dispatches this same workflow.
 on:
   workflow_dispatch:
     inputs:
@@ -282,7 +282,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           path: release-source
-      - name: Publish this manually selected build
+      - name: Publish this selected build
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

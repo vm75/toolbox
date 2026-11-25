@@ -12,9 +12,20 @@ Use **Actions → Build toolbox tool → Run workflow**. Pick a supported
 filter a second dropdown dynamically, so only valid combinations are listed.
 The workflow downloads upstream, applies
 `tools/<tool>/custom.patch` when present, builds and uploads artifacts.
-**No Actions build or release runs on push, PR, tag, release or a schedule.**
+**No Actions build or release runs on push, PR, tag or release.**
+[Scheduled toolbox builds](.github/workflows/scheduled.yml) dispatches only:
+
+- Every Sunday at 03:15 Pacific: nginx and Vaultwarden (`entware-aarch64`).
+- January, April, July and October 1 at 03:45 Pacific: Librera and Cryptomator (`android-arm64`).
+
+Each scheduled run requests the latest stable upstream, builds even if the upstream
+version is unchanged, and publishes only after success (identical releases may be
+reused). The scheduler reports dispatch success; check each child build for its
+actual result. The scheduler can also be run manually for either group. Android
+signing environment requirements remain in force; no new token or signing secret
+is needed.
 The `publish_release` checkbox defaults to **true**; uncheck it to skip publishing.
-Publishing is a separate job inside the *manually dispatched* build after success.
+Publishing is a separate job inside each dispatched build after success.
 Release titles and Git tags use `toolbox-<tool>-<platform>-<version>_<architecture>`,
 for example `toolbox-nginx-entware-1.30.8-99_aarch64`. Entware uses the primary
 IPK version, including its package revision; Android apps use the upstream tag.
@@ -78,7 +89,8 @@ For example, you could show only:
 The dropdown updates after committing the workflow file to `main`.
 This only changes the **visible choices**, not which targets the build scripts
 support. `scripts/test.sh` verifies the shortlist contains no invalid or
-duplicate combinations and that its default is listed. Builds remain manual-only.
+duplicate combinations and that its default is listed. Only the four allowlisted
+scheduled tool/target combinations run automatically.
 
 ## Supported targets
 
@@ -138,7 +150,7 @@ to require code work.
 
 ## Security and release policy
 
-GitHub Actions is manual-only. Source pins are recorded in `dist/build-info.txt`,
+Tool builds are manual or allowlisted scheduled dispatches. Source pins are recorded in `dist/build-info.txt`,
 along with patch hashes, checksums and any packaged IPKs/APKs. A second
 manual-only workflow publishes **three versioned builder images**:
 `entware-aarch64:v3`, `entware-armv7:v2` and `android:ndk-r27d`.

@@ -110,7 +110,7 @@ if (( ${#assets[@]} == 0 )); then
   assets=("$RUNNER_TEMP/$tag.tar.gz")
 fi
 {
-  printf 'Manually requested upstream build. Validate on target before deploying.\n\n'
+  printf 'Requested upstream build. Validate on target before deploying.\n\n'
   printf 'Version: %s\nToolbox commit: %s\n%s\n' "$version" "$GITHUB_SHA" "$marker"
   printf 'Workflow run: %s/%s/actions/runs/%s (attempt %s)\n\n' "${GITHUB_SERVER_URL:-https://github.com}" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
   printf 'Source and patch metadata:\n'

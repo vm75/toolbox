@@ -1,7 +1,7 @@
 # Architecture
 
 ```text
-manual workflow_dispatch (tool + compatible target + optional refs)
+workflow_dispatch (manual or allowlisted scheduler; tool + target + optional refs)
        |
   scripts/run.sh -> choose existing GHCR builder or GitHub Ubuntu runner
        |
@@ -21,7 +21,7 @@ manual workflow_dispatch (tool + compatible target + optional refs)
        |
   Actions artifact
        |
-  optional manual GitHub Release (default on; versioned tag)
+  optional GitHub Release (default on; versioned tag)
 ```
 
 ## Target isolation

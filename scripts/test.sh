@@ -17,14 +17,16 @@ for conf in tools/*/tool.conf; do
   done
 done
 for workflow in .github/workflows/*.yml; do
-  awk '
+  awk -v scheduled="$([[ "$workflow" == .github/workflows/scheduled.yml ]] && echo 1 || echo 0)" '
     /^on:/ { in_on=1; next }
     in_on && /^[^[:space:]]/ { in_on=0 }
-    in_on && /^  workflow_dispatch:/ { manual=1 }
-    in_on && /^  (push|pull_request|schedule|release|workflow_run):/ { automatic=1 }
-    END { if (!manual || automatic) exit 1 }
-  ' "$workflow" || { echo "Not manual-only: $workflow" >&2; exit 1; }
+    in_on && /^  workflow_dispatch:/ { manual=1; next }
+    in_on && /^  schedule:/ { cron=1; next }
+    in_on && /^  [a-zA-Z_]+:/ { other=1 }
+    END { if (!manual || other || (scheduled != cron+0)) exit 1 }
+  ' "$workflow" || { echo "Unexpected triggers: $workflow" >&2; exit 1; }
 done
+[[ -f .github/workflows/scheduled.yml ]]
 for dir in tools/*; do
   [[ ! -d "$dir/patches" ]] || {
     echo "Legacy multi-patch directory exists: $dir/patches" >&2; exit 1;
@@ -104,6 +106,47 @@ old_target="router""-aarch64"
 # Smoke-test the opkg Architecture field for both Entware targets without building binaries.
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+# Exercise the actual scheduler shell without dispatching real workflows.
+scheduler=.github/workflows/scheduled.yml
+grep -Fqx "    - cron: '15 3 * * 0'" "$scheduler"
+grep -Fqx "    - cron: '45 3 1 1,4,7,10 *'" "$scheduler"
+[[ "$(grep -Fc '    - cron:' "$scheduler")" == 2 ]]
+[[ "$(grep -Fc "      timezone: 'America/Los_Angeles'" "$scheduler")" == 2 ]]
+sed -n '/^        run: |$/,$s/^          //p' "$scheduler" > "$tmp/scheduled.sh"
+bash -n "$tmp/scheduled.sh"
+mkdir -p "$tmp/scheduler-bin"
+cat > "$tmp/scheduler-bin/gh" <<'MOCK_GH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$TOOLBOX_TEST_DISPATCH_LOG"
+if [[ -n "${TOOLBOX_TEST_FAIL_BUILD:-}" && "$*" == *"$TOOLBOX_TEST_FAIL_BUILD"* ]]; then exit 1; fi
+MOCK_GH
+chmod +x "$tmp/scheduler-bin/gh"
+check_scheduled() {
+  local event="$1" cron="$2" group="$3" first="$4" second="$5" log="$tmp/dispatch-log"
+  : > "$log"
+  PATH="$tmp/scheduler-bin:$PATH" TOOLBOX_TEST_DISPATCH_LOG="$log" \
+    GITHUB_EVENT_NAME="$event" SCHEDULE="$cron" GROUP="$group" \
+    GITHUB_REPOSITORY=vm75/toolbox GITHUB_REF_NAME=main bash "$tmp/scheduled.sh"
+  diff -u <(printf 'workflow run build.yml --repo vm75/toolbox --ref main -f build=%s -f prepare_only=false -f publish_release=true\n' "$first" "$second") "$log"
+}
+check_scheduled schedule '15 3 * * 0' '' 'nginx / entware-aarch64' 'vaultwarden / entware-aarch64'
+check_scheduled schedule '45 3 1 1,4,7,10 *' '' 'librera / android-arm64' 'cryptomator / android-arm64'
+check_scheduled workflow_dispatch '' weekly 'nginx / entware-aarch64' 'vaultwarden / entware-aarch64'
+check_scheduled workflow_dispatch '' quarterly 'librera / android-arm64' 'cryptomator / android-arm64'
+: > "$tmp/dispatch-log"
+if PATH="$tmp/scheduler-bin:$PATH" TOOLBOX_TEST_DISPATCH_LOG="$tmp/dispatch-log" \
+    TOOLBOX_TEST_FAIL_BUILD=nginx GITHUB_EVENT_NAME=schedule SCHEDULE='15 3 * * 0' GROUP='' \
+    GITHUB_REPOSITORY=vm75/toolbox GITHUB_REF_NAME=main bash "$tmp/scheduled.sh"; then
+  echo "Scheduler failed to report dispatch failure" >&2; exit 1
+fi
+[[ "$(wc -l < "$tmp/dispatch-log")" == 2 ]]
+: > "$tmp/dispatch-log"
+if PATH="$tmp/scheduler-bin:$PATH" TOOLBOX_TEST_DISPATCH_LOG="$tmp/dispatch-log" \
+    GITHUB_EVENT_NAME=schedule SCHEDULE=unexpected GROUP='' \
+    GITHUB_REPOSITORY=vm75/toolbox GITHUB_REF_NAME=main bash "$tmp/scheduled.sh"; then
+  echo "Scheduler accepted an unknown schedule" >&2; exit 1
+fi
+[[ ! -s "$tmp/dispatch-log" ]]
 # Exercise release selection with a local upstream and no network access.
 mkdir -p "$tmp/release-root/scripts" "$tmp/release-root/tools/"{librera,cryptomator} "$tmp/release-bin"
 cp scripts/{build,release-version}.sh "$tmp/release-root/scripts/"

@@ -1,0 +1,58 @@
+name: Scheduled toolbox builds
+on:
+  schedule:
+    - cron: '15 3 * * 0'
+      timezone: 'America/Los_Angeles'
+    - cron: '45 3 1 1,4,7,10 *'
+      timezone: 'America/Los_Angeles'
+  workflow_dispatch:
+    inputs:
+      group:
+        description: Build group to dispatch now
+        type: choice
+        required: true
+        default: weekly
+        options:
+          - weekly
+          - quarterly
+
+# Dispatch independent runs of the existing workflow, using only the built-in token.
+permissions:
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch scheduled tool builds
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCHEDULE: ${{ github.event.schedule }}
+          GROUP: ${{ inputs.group }}
+        run: |
+          set -euo pipefail
+          case "$GITHUB_EVENT_NAME" in
+            schedule)
+              case "$SCHEDULE" in
+                '15 3 * * 0') group=weekly ;;
+                '45 3 1 1,4,7,10 *') group=quarterly ;;
+                *) echo "Unknown schedule: $SCHEDULE" >&2; exit 1 ;;
+              esac
+              ;;
+            workflow_dispatch) group="$GROUP" ;;
+            *) exit 1 ;;
+          esac
+          case "$group" in
+            weekly) builds=('nginx / entware-aarch64' 'vaultwarden / entware-aarch64') ;;
+            quarterly) builds=('librera / android-arm64' 'cryptomator / android-arm64') ;;
+            *) echo "Unknown build group: $group" >&2; exit 1 ;;
+          esac
+          failed=0
+          for build in "${builds[@]}"; do
+            echo "Dispatching $build"
+            gh workflow run build.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" \
+              -f "build=$build" -f prepare_only=false -f publish_release=true || failed=1
+          done
+          exit "$failed"
