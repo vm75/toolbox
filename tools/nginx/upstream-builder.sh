@@ -524,6 +524,15 @@ for name in nginx-ssl nginx-mod-brotli nginx-mod-stream nginx-mod-headers-more; 
   expect_kconfig "PACKAGE_$name" m
 done
 
+# The pinned Entware AArch64 target is already speed-oriented; do not
+# replace -O2 with size optimization or disable package-level LTO/hardening.
+if [[ "$ENTWARE_TARGET" == aarch64-3.10 ]]; then
+  expect_kconfig TARGET_OPTIMIZATION '"-O2 -pipe -mcpu=cortex-a53"'
+  expect_kconfig USE_STRIP y
+  grep -Eq '^PKG_BUILD_FLAGS:=[[:space:]]*gc-sections[[:space:]]+lto([[:space:]]|$)' "$RECIPE_FILE" \
+    || die 'Expected nginx package-level section GC and LTO'
+fi
+
 log "Compiling NGINX, Brotli, stream and headers-more with $JOBS jobs"
 # Do not reuse a package compilation for a previous NGINX release.
 (cd "$ENTWARE" && make package/nginx/clean)
@@ -651,6 +660,9 @@ PY
     printf 'nginx_source_sha256=%s\n' "$SOURCE_SHA256"
     printf 'profile=toolbox-reverse-proxy-hardened-v2-broad-upstream\n'
     printf 'hardening=PIE+SSP_STRONG+FORTIFY2+FULL_RELRO+FORMAT_SECURITY\n'
+    grep -E '^CONFIG_(TARGET_OPTIMIZATION|STRIP_ARGS)=' "$ENTWARE/.config"
+    grep -E '^PKG_BUILD_FLAGS:=' "$RECIPE_FILE"
+    printf 'nginx_binary_bytes=%s\n' "$(wc -c < nginx)"
     printf 'enabled_upstreams=HTTP,HTTPS,GRPC,FASTCGI,UWSGI,SCGI,MEMCACHED,TCP,UDP\n'
     printf 'enabled_features=HTTP2,HTTP3,REAL_IP,ACCESS,AUTH_REQUEST,RATE_LIMIT,CONN_LIMIT,GZIP,BROTLI,HEADERS_MORE\n'
     printf 'disabled_modules=DAV,FLV,SSI,USERID,AUTOINDEX,EMPTY_GIF,BROWSER,NJS,GEOIP2,NAXSI,LUA,RTMP,TS,DAV_EXT\n'

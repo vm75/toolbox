@@ -21,6 +21,24 @@ if [[ "$TARGET" == entware-aarch64 || "$TARGET" == entware-armv7 ]]; then
       interpreter=/opt/lib/ld-linux.so.3
       ;;
   esac
+  features=sqlite,vendored_openssl
+  if [[ "$TARGET" == entware-aarch64 ]]; then
+    # Carry forward shenv's secure mimalloc build; favor execution speed over size.
+    features+=,enable_mimalloc
+    export CARGO_PROFILE_RELEASE_OPT_LEVEL=3
+    export CARGO_PROFILE_RELEASE_LTO=fat
+    export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+    export CARGO_PROFILE_RELEASE_STRIP=symbols
+    export CARGO_PROFILE_RELEASE_DEBUG=false
+    {
+      printf 'vaultwarden_opt_level=%s\n' "$CARGO_PROFILE_RELEASE_OPT_LEVEL"
+      printf 'vaultwarden_lto=%s\n' "$CARGO_PROFILE_RELEASE_LTO"
+      printf 'vaultwarden_codegen_units=%s\n' "$CARGO_PROFILE_RELEASE_CODEGEN_UNITS"
+      printf 'vaultwarden_strip=%s\n' "$CARGO_PROFILE_RELEASE_STRIP"
+      printf 'vaultwarden_debug=%s\n' "$CARGO_PROFILE_RELEASE_DEBUG"
+    } >> "$OUT/build-info.txt"
+  fi
+  printf 'vaultwarden_features=%s\n' "$features" >> "$OUT/build-info.txt"
   command -v cargo-zigbuild
   python3 -m ziglang version
   # Do this INSIDE the upstream checkout: its rust-toolchain.toml selects
@@ -37,11 +55,12 @@ if [[ "$TARGET" == entware-aarch64 || "$TARGET" == entware-armv7 ]]; then
     }
     RUSTFLAGS="-C link-arg=-Wl,--dynamic-linker=$interpreter" \
       cargo zigbuild --locked --release --target "$rust_target.2.27" \
-        --no-default-features --features sqlite,vendored_openssl
+        --no-default-features --features "$features"
   )
   install -m 0755 "$SRC/target/$rust_target/release/vaultwarden" \
     "$stage/opt/libexec/vaultwarden/vaultwarden"
   bash "$ROOT/scripts/check-router-elf.sh" "$stage/opt/libexec/vaultwarden/vaultwarden"
+  printf 'vaultwarden_binary_bytes=%s\n' "$(wc -c < "$stage/opt/libexec/vaultwarden/vaultwarden")" >> "$OUT/build-info.txt"
   # Matching upstream web-vault digest, rather than a floating 'latest' image.
   web_image="$(sed -nE 's/^FROM --platform=linux\/amd64 (docker.io\/vaultwarden\/web-vault@sha256:[0-9a-f]+) AS vault$/\1/p' "$SRC/docker/Dockerfile.alpine" | head -1)"
   [[ -n "$web_image" ]] || { echo "Pinned web-vault digest not found" >&2; exit 1; }
