@@ -14,6 +14,13 @@ if [[ "$TARGET" == entware-* ]]; then
   [[ "$filename" == "$package"_*_"$arch".ipk ]] || exit 1
   version="${filename#"$package"_}"
   version="${version%_"$arch".ipk}"
+elif [[ "$TOOL" == vaultwarden ]]; then
+  # Use the actual Linux deliverable, just as the Entware path uses its IPK.
+  mapfile -d '' -t archives < <(find "$OUT" -type f -name "vaultwarden-*-$TARGET.tgz" -print0)
+  (( ${#archives[@]} == 1 )) || { echo "Expected exactly one Vaultwarden archive" >&2; exit 1; }
+  filename="${archives[0]##*/}"
+  version="${filename#vaultwarden-}"
+  version="${version%-$TARGET.tgz}"
 else
   # The checkout is shallow; an explicit tag may not have a local tag ref.
   sha="$(git -C "$SRC" rev-parse --short=12 HEAD)"
@@ -35,8 +42,6 @@ else
   else
     # Branch builds may report the same source version for many commits.
     case "$TOOL" in
-      vaultwarden)
-        version="$(sed -nE 's/^version = "([^"]+)".*/\1/p' "$SRC/Cargo.toml" | head -n 1)" ;;
       busybox)
         version="$(awk -F ' *= *' '
           $1=="VERSION" {v=$2} $1=="PATCHLEVEL" {p=$2} $1=="SUBLEVEL" {s=$2}

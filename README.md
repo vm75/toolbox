@@ -26,8 +26,10 @@ pins the exact toolbox commit while the build runs and is removed after publicat
 Run IDs remain in release notes, not release names.
 Use `upstream_ref` to select a tool revision; for nginx enter an exact release
 such as `1.28.0`, or leave blank for the latest stable release. `mupdf_ref`
-selects the MuPDF dependency independently when building Librera. Cryptomator and Librera
-both default to GitHub's latest stable release; an explicit `upstream_ref` overrides it.
+selects the MuPDF dependency independently when building Librera. Cryptomator, Librera and Vaultwarden
+default to GitHub's latest stable release; an explicit `upstream_ref` overrides it.
+Vaultwarden uses the resolved release tag for its binary, archive and IPK version;
+untagged branch/commit builds use `0.0.0-g<commit>`.
 APK names include the resolved upstream tag/ref, for example `cryptomator-3.0.0.apk`,
 `librera-10.1.14-arm64.apk` and `librera-10.1.14-universal.apk`.
 If the release API is unavailable, the resolver warns and uses the highest numeric

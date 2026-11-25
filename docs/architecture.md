@@ -55,12 +55,15 @@ and `DEPS`. The runner exports `ROOT`, `WORKSPACE`, `SRC`, `OUT`,
 Librera's dependency ref. The common upstream ref is exported as
 `TOOLBOX_UPSTREAM_REF`; for nginx it selects an exact signed X.Y.Z source
 release, while an empty ref selects the latest stable release. Other tools
-accept Git branches, tags or commits. Both Android apps' `latest-stable`
-default resolves GitHub's latest non-prerelease release tag at build time; explicit
+accept Git branches, tags or commits. For Cryptomator, Librera and Vaultwarden, the
+`latest-stable` default resolves GitHub's latest non-prerelease release tag at build time; explicit
 refs override it. If the API is unavailable, the resolver warns and falls back to
 the highest numeric Git tag. The resolved ref and commit are recorded in
-`build-info.txt`. Their recipes receive `APK_VERSION`, the filename-safe selected
+`build-info.txt`. Android recipes receive `APK_VERSION`, the filename-safe selected
 tag/ref, and include it in each APK name; Librera also preserves the APK variant.
+Vaultwarden receives `VW_VERSION` from the verified upstream tag (or a commit-based
+snapshot version), uses it for its binary and deliverables, and never uses Cargo's
+placeholder version.
 Use exact refs for reproducibility. After successful compilation the common
 version resolver records `release_version` in `build-info.txt`. The release job
 uses that value and the target to name the release and tag, pins the exact

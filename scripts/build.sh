@@ -62,6 +62,7 @@ prepare() {
       case "$name" in
         cryptomator) release_repo=cryptomator/android ;;
         librera) release_repo=foobnix/LibreraReader ;;
+        vaultwarden) release_repo=dani-garcia/vaultwarden ;;
         *) echo "No latest-stable release resolver for $name" >&2; exit 1 ;;
       esac
       local auth_header=()
@@ -109,6 +110,31 @@ print("refs/tags/" + tag)')"
       version="${version#refs/heads/}"
       export APK_VERSION="$(printf '%s' "$version" | tr -c 'A-Za-z0-9._-' '-')"
       [[ -n "$APK_VERSION" ]] || { echo "Empty APK version" >&2; exit 1; }
+    fi
+    if [[ "$name" == "$TOOL" && "$name" == vaultwarden ]]; then
+      # Cargo.toml deliberately uses 1.0.0; the upstream Git tag is the release version.
+      local candidate="${ref#refs/tags/}" tag= remote_tags=
+      if [[ "$ref" == refs/tags/* ]]; then
+        tag="$candidate"
+      elif [[ "$candidate" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.+-][A-Za-z0-9.+-]+)?$ ]]; then
+        # A shallow fetch need not retain a tag ref. Verify plain tag names,
+        # including annotated tags, against the actual checked-out commit.
+        remote_tags="$(git -C "$src" ls-remote --tags origin "refs/tags/$candidate" "refs/tags/$candidate^{}")"
+        if grep -Fqx "$sha"$'\t'"refs/tags/$candidate" <<< "$remote_tags" ||
+           grep -Fqx "$sha"$'\t'"refs/tags/$candidate^{}" <<< "$remote_tags"; then
+          tag="$candidate"
+        fi
+      fi
+      if [[ -n "$tag" ]]; then
+        [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.+-][A-Za-z0-9.+-]+)?$ ]] || {
+          echo "Unsupported Vaultwarden release tag: $tag" >&2; exit 1;
+        }
+        export VW_VERSION="$tag"
+      else
+        # A branch/commit build is not a stable release; identify the snapshot.
+        export VW_VERSION="0.0.0-g${sha:0:12}"
+      fi
+      echo "Vaultwarden version: $VW_VERSION"
     fi
     patch="$ROOT/tools/$name/custom.patch"
     if [[ -s "$patch" ]]; then

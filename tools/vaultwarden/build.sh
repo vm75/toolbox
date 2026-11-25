@@ -4,8 +4,8 @@ stage="$WORKSPACE/stage-vaultwarden"
 mkdir -p "$stage/opt/libexec/vaultwarden" "$stage/opt/bin" \
   "$stage/opt/share/vaultwarden/web-vault" "$stage/opt/etc/init.d" \
   "$stage/opt/share/doc/vaultwarden"
-version="$(sed -n '/^version = /s/.*"\([^"]*\)".*/\1/p' "$SRC/Cargo.toml" | head -1)"
-version="${version:-0.0.0}"
+version="${VW_VERSION:?Missing resolved Vaultwarden version}"
+export VW_VERSION
 if [[ "$TARGET" == entware-aarch64 || "$TARGET" == entware-armv7 ]]; then
   # Select a supported glibc 2.27 ABI and the correct Entware /opt interpreter.
   case "$TARGET" in
@@ -60,7 +60,7 @@ else
   esac
   docker buildx version
   img="toolbox-vaultwarden:${GITHUB_RUN_ID:-local}-${TARGET}"
-  docker buildx build --load --platform "$platform" -f "$SRC/docker/Dockerfile.alpine" -t "$img" "$SRC"
+  docker buildx build --load --platform "$platform" --build-arg "VW_VERSION=$version" -f "$SRC/docker/Dockerfile.alpine" -t "$img" "$SRC"
   container="$(docker create "$img")"
   trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
   docker cp "$container:/vaultwarden" "$stage/opt/libexec/vaultwarden/vaultwarden"

@@ -163,6 +163,65 @@ if PATH="$tmp/release-bin:$PATH" TOOLBOX_TEST_RELEASE_JSON="$tmp/release.json" \
     bash "$tmp/release-root/scripts/build.sh" librera android-arm64 >/dev/null 2>&1; then
   echo "Librera accepted a prerelease as latest stable" >&2; exit 1
 fi
+# Vaultwarden's real package version is the release tag, not Cargo's 1.0.0.
+grep -Fqx 'SOURCE_REF="latest-stable"' tools/vaultwarden/tool.conf
+mkdir -p "$tmp/release-root/tools/vaultwarden"
+cp scripts/ipk.sh "$tmp/release-root/scripts/"
+cat > "$tmp/release-root/tools/vaultwarden/tool.conf" <<CONF
+SOURCE_URL="$tmp/release-upstream"
+SOURCE_REF="latest-stable"
+TARGETS="entware-aarch64 entware-armv7 linux-amd64"
+DEPS=""
+CONF
+printf '%s\n' '[package]' 'version = "1.0.0"' > "$tmp/release-upstream/Cargo.toml"
+git -C "$tmp/release-upstream" add Cargo.toml
+git -C "$tmp/release-upstream" -c user.name=Test -c user.email=test@example.invalid commit -qm vaultwarden
+git -C "$tmp/release-upstream" tag 1.37.5
+git -C "$tmp/release-upstream" -c user.name=Test -c user.email=test@example.invalid tag -a 1.37.4 -m annotated
+git -C "$tmp/release-upstream" -c user.name=Test -c user.email=test@example.invalid commit -qm snapshot --allow-empty
+git -C "$tmp/release-upstream" branch snapshot
+snapshot="$(git -C "$tmp/release-upstream" rev-parse --short=12 HEAD)"
+cat > "$tmp/release-root/tools/vaultwarden/build.sh" <<'MOCK_VAULTWARDEN'
+#!/usr/bin/env bash
+set -euo pipefail
+version="${VW_VERSION:?}"
+mkdir -p "$WORKSPACE/stage/opt/bin"
+touch "$WORKSPACE/stage/opt/bin/vaultwarden"
+if [[ "$TARGET" == entware-* ]]; then
+  bash "$ROOT/scripts/ipk.sh" vaultwarden "$version-1" "$WORKSPACE/stage" "$OUT" fixture
+else
+  tar -C "$WORKSPACE/stage" -czf "$OUT/vaultwarden-$version-$TARGET.tgz" opt
+fi
+MOCK_VAULTWARDEN
+printf '%s\n' '{"tag_name":"1.37.5","draft":false,"prerelease":false}' > "$tmp/release.json"
+for target in entware-aarch64 entware-armv7 linux-amd64; do
+  for ref in '' 1.37.4 refs/tags/1.37.5 snapshot; do
+    run="vw-$target-${ref//\//-}"
+    case "$ref" in
+      ''|refs/tags/1.37.5) expected=1.37.5 ;;
+      1.37.4) expected=1.37.4 ;;
+      snapshot) expected="0.0.0-g$snapshot" ;;
+    esac
+    out="$tmp/$run-out"
+    PATH="$tmp/release-bin:$PATH" TOOLBOX_TEST_RELEASE_JSON="$tmp/release.json" \
+      TOOLBOX_WORKDIR="$tmp/$run" TOOLBOX_OUTPUT="$out" \
+      bash "$tmp/release-root/scripts/build.sh" vaultwarden "$target" "$ref" >/dev/null
+    case "$target" in
+      entware-aarch64) asset="vaultwarden_${expected}-1_aarch64-3.10.ipk" ;;
+      entware-armv7) asset="vaultwarden_${expected}-1_armv7-3.2.ipk" ;;
+      linux-amd64) asset="vaultwarden-$expected-$target.tgz" ;;
+    esac
+    [[ -f "$out/$asset" ]]
+    if [[ "$target" == entware-* ]]; then
+      grep -Fqx "release_version $expected-1" "$out/build-info.txt"
+      tar -xOzf "$out/$asset" control.tar.gz | tar -xOzf - ./control | grep -Fqx "Version: $expected-1"
+    else
+      grep -Fqx "release_version $expected" "$out/build-info.txt"
+    fi
+  done
+done
+grep -Fq 'version="${VW_VERSION:?' tools/vaultwarden/build.sh
+grep -Fq -- '--build-arg "VW_VERSION=$version"' tools/vaultwarden/build.sh
 # nginx is not a Git checkout: validate the shared ref as X.Y.Z even when
 # prepare_only avoids downloading source or building packages.
 TOOLBOX_PREPARE_ONLY=1 TOOLBOX_WORKDIR="$tmp/nginx-prepare" \
