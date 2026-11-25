@@ -11,8 +11,17 @@ cxx="${TOOLBOX_MUSL_PREFIX:-/opt/x-tools}/$triple/bin/$triple-g++"
 version="$("$cxx" -dumpfullversion -dumpversion)"
 [[ "$version" == 15.2.0 ]] || { echo "Expected musl GCC 15.2.0, got $version" >&2; exit 1; }
 echo "Building btop for $TARGET with $cxx ($version)"
+extra_make_args=()
+if [[ "$TARGET" == entware-aarch64 ]]; then
+  # Preserve upstream -O2; make LTO, stripping and section GC explicit.
+  extra_make_args=(STRIP=true
+    "OPTFLAGS=-O2 -flto=auto -ffunction-sections -fdata-sections"
+    "LDFLAGS=-Wl,--gc-sections")
+  printf 'btop_make_arg=%s\n' "${extra_make_args[@]}" >> "$OUT/build-info.txt"
+fi
 make -C "$SRC" -j"${TOOLBOX_JOBS:-4}" CXX="$cxx" \
-  PLATFORM=linux ARCH="$arch" STATIC=true GPU_SUPPORT=false RSMI_STATIC= QUIET=true
+  PLATFORM=linux ARCH="$arch" STATIC=true GPU_SUPPORT=false RSMI_STATIC= QUIET=true \
+  "${extra_make_args[@]}"
 
 binary="$SRC/bin/btop"
 [[ -s "$binary" ]] || { echo "btop output not found: $binary" >&2; exit 1; }
@@ -24,6 +33,7 @@ if readelf -d "$binary" 2>/dev/null | grep -q '(NEEDED)'; then
   echo "btop is not static: shared libraries are required" >&2; exit 1
 fi
 bash "$ROOT/scripts/check-router-elf.sh" "$binary"
+printf 'btop_binary_bytes=%s\n' "$(wc -c < "$binary")" >> "$OUT/build-info.txt"
 
 stage="$WORKSPACE/stage-btop"
 mkdir -p "$stage/opt/bin" "$stage/opt/share/doc/btop"

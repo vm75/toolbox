@@ -354,6 +354,18 @@ grep -Fq 'rustup target add "$rust_target"' tools/vaultwarden/build.sh || {
 grep -Fq 'STATIC=true GPU_SUPPORT=false' tools/btop/build.sh || {
   echo "Entware btop must be statically linked" >&2; exit 1;
 }
+# Router optimization policy: retain speed and security, not size-first builds.
+grep -Fq 'features+=,enable_mimalloc' tools/vaultwarden/build.sh
+grep -Fq -- '--no-default-features --features "$features"' tools/vaultwarden/build.sh
+grep -Fq 'CARGO_PROFILE_RELEASE_OPT_LEVEL=3' tools/vaultwarden/build.sh
+grep -Fq 'CARGO_PROFILE_RELEASE_LTO=fat' tools/vaultwarden/build.sh
+grep -Fq 'CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1' tools/vaultwarden/build.sh
+grep -Fq 'CARGO_PROFILE_RELEASE_STRIP=symbols' tools/vaultwarden/build.sh
+grep -Fq 'STRIP=true' tools/btop/build.sh
+grep -Fq 'OPTFLAGS=-O2 -flto=auto -ffunction-sections -fdata-sections' tools/btop/build.sh
+grep -Fq 'LDFLAGS=-Wl,--gc-sections' tools/btop/build.sh
+grep -Fq -- '-O2 -pipe -mcpu=cortex-a53' tools/nginx/upstream-builder.sh
+grep -Fq 'gc-sections[[:space:]]+lto' tools/nginx/upstream-builder.sh
 # Route smoke tests: stub docker so ARMv7 cannot accidentally ask for an Android
 # signing key or rebuild the Entware toolchain from scratch.
 mkdir -p "$tmp/fake-bin"

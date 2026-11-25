@@ -123,3 +123,24 @@ No self-hosted runner, separate external cache service, automatic image
 publication, or all-target build matrix is used. The image itself contains
 the expensive fixed toolchain; upstream tool sources remain ephemeral.
 See [build-images.md](build-images.md) for manual setup and versioning.
+
+## Entware AArch64 optimization policy
+
+Favor runtime memory efficiency and execution speed over executable size.
+Carry forward the useful shenv optimizations without depending on shenv:
+
+- Vaultwarden: SQLite-only, vendored OpenSSL, upstream secure mimalloc,
+  release optimization level 3, fat LTO, one codegen unit, full symbol
+  stripping. Keep the existing glibc 2.27 ABI and panic behavior.
+- nginx: retain the pinned Entware Cortex-A53 `-O2` target, package-level
+  LTO and section GC, stripping, broad reverse-proxy features and security
+  hardening. Do not replace speed optimization with `-Os`.
+- btop: retain static musl/GCC 15.2 and disable GPU support. Explicitly
+  request `-O2`, LTO, section GC and symbol stripping.
+
+Record these settings and executable byte sizes in build-info.txt (nginx
+uses its own build-info.txt in the nginx output directory). Smaller files
+are not proof of lower runtime RAM. Compare idle and peak PSS/RSS, CPU time,
+and request latency on the router before introducing additional compiler
+or allocator tuning. These settings do not change deployed configurations,
+ARMv7 build flags, or scheduled build policy.
